@@ -16,25 +16,33 @@ export default function UserSignInPortal() {
   const executeLoginSignature = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+  
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
     });
-
+  
     if (authError) {
       alert(`Authentication Reject: ${authError.message}`);
       setLoading(false);
       return;
     }
-
-    const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', authData.user?.id).single();
+  
+    // Look up the role attribute assigned to this user profile record inside Postgres
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', authData.user?.id)
+      .single();
     
     if (profile?.role === 'admin') {
+      // Navigate straight to your Master Controls Panel
       router.push('/dashboard');
+    } else if (profile?.role === 'client') {
+      // Navigate straight to the private client profile space
+      router.push('/client/dashboard');
     } else {
-      alert('Access Restricted: Administrative verification required.');
-      await supabase.auth.signOut();
+      alert('Access Exception: Profile verification configuration error.');
       setLoading(false);
     }
   };
