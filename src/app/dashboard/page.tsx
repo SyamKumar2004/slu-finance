@@ -184,11 +184,28 @@ export default function ProtectedAdminDashboard() {
     if (isNaN(amt) || amt <= 0) return;
 
     setLoadingFunds(true);
-    const { error } = await supabase.from('company_capital').insert([{ amount: amt, notes: capitalInput.notes.trim() || 'Manual Capital Injection' }]);
-    if (!error) {
-      setCapitalInput({ amount: '', notes: '' });
-      fetchDynamicRealtimeMetrics();
+    
+    // Explicit direct column mapping insert block
+    const { error } = await supabase
+      .from('company_capital')
+      .insert([
+        { 
+          amount: amt, 
+          notes: capitalInput.notes.trim() || 'Manual Capital Injection' 
+        }
+      ]);
+
+    if (error) {
+      alert(`Database Write Error: ${error.message}`);
+      setLoadingFunds(false);
+      return;
     }
+
+    alert(`Success: Injected ₹${amt.toLocaleString()} into system reserves!`);
+    setCapitalInput({ amount: '', notes: '' });
+    
+    // CRITICAL: Force-updates your active dashboard screen tracking variables instantly
+    await fetchDynamicRealtimeMetrics();
     setLoadingFunds(false);
   };
 
