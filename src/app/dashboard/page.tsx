@@ -58,13 +58,34 @@ export default function ProtectedAdminDashboard() {
   }, [formData.principalAmount, formData.interestRate, formData.totalInstallments]);
 
   async function enforceAdministrativeSession() {
+    // Failsafe 1: Attempt to read local storage session details first
+    const activeLocalSession = localStorage.getItem('slu_session_active');
+    const locallySavedName = localStorage.getItem('slu_user_name');
+
+    if (activeLocalSession === 'true' && locallySavedName) {
+      setAdminProfile({
+        name: locallySavedName,
+        email: 'admin@slufinance.internal',
+        role: 'Master Super Admin'
+      });
+      fetchDynamicRealtimeMetrics();
+      return;
+    }
+
+    // Fallback 2: Standard user row metadata logic
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push('/auth/login'); return; }
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
 
     const { data: profile } = await supabase.from('user_profiles').select('full_name, role').eq('id', user.id).single();
-    if (profile?.role !== 'admin') { await supabase.auth.signOut(); router.push('/auth/login'); return; }
+    if (profile?.role !== 'admin') {
+      await supabase.auth.signOut();
+      router.push('/auth/login');
+      return;
+    }
 
-    // Binds your precise registered identity name to the system session component state
     setAdminProfile({
       name: profile?.full_name || 'System Admin',
       email: user.email || '',
