@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
   BarChart3, TrendingUp, AlertTriangle, Users, ArrowRight, UserPlus, 
-  ShieldAlert, PhoneCall, Percent, Globe, Wallet, User, LogOut, CheckCircle 
+  ShieldAlert, PhoneCall, Percent, Globe, Wallet, User, LogOut, CheckCircle,
+  Trash2, DollarSign, Check
 } from 'lucide-react';
 
 const COUNTRY_CODES = [
@@ -24,14 +25,14 @@ export default function ProtectedAdminDashboard() {
   const [metrics, setMetrics] = useState({ totalLent: 0, totalCollected: 0, pendingDues: 0 });
   const [adminProfileName, setAdminProfileName] = useState<string>('SYSTEM ADMIN');
 
-  // Completely sanitized placeholder form values
+  // Input states
   const [formData, setFormData] = useState({ 
     clientName: '', countryCode: '+91', clientPhone: '', 
     principalAmount: '10000', installmentAmount: '0', 
     tenure: 'Daily', totalInstallments: '100', interestRate: '24' 
   });
-
   const [capitalForm, setCapitalForm] = useState({ amount: '', source: 'Owner Injection' });
+  const [collectionAmount, setCollectionAmount] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     enforceAdministrativeSession();
@@ -71,7 +72,7 @@ export default function ProtectedAdminDashboard() {
   }
 
   async function fetchDynamicRealtimeMetrics() {
-    const { data: rawLoans } = await supabase.from('live_loans').select('*');
+    const { data: rawLoans } = await supabase.from('live_loans').select('*').order('created_at', { ascending: false });
     let loanList: any[] = [];
     let calculatedLent = 0;
     let calculatedCollected = 0;
@@ -80,13 +81,16 @@ export default function ProtectedAdminDashboard() {
       loanList = rawLoans.map((l: any) => ({
         id: l.id, name: l.client_name, phone: l.client_phone, principal: Number(l.principal_amount),
         installment: Number(l.installment_amount), tenure: l.tenure_type, interest: Number(l.interest_rate),
-        status: l.status, missedDays: l.missed_days_count || 0, collected: Number(l.total_collected || 0)
+        status: l.status, missedDays: l.missed_days_count || 0, collected: Number(l.total_collected || 0),
+        totalCycles: Number(l.total_cycles || 100)
       }));
       setLoans(loanList);
       
       loanList.forEach(l => {
-        calculatedLent += l.principal;
-        calculatedCollected += l.collected;
+        if (l.status !== 'Deleted') {
+          calculatedLent += l.principal;
+          calculatedCollected += l.collected;
+        }
       });
     }
 
@@ -106,9 +110,77 @@ export default function ProtectedAdminDashboard() {
     });
   }
 
-  const handleTerminateSession = async () => {
-    await supabase.auth.signOut();
-    router.push('/auth/login');
+  // --- NEW MASTER ADMINISTRATIVE FEATURES ---
+
+  const handleCreateLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fullPhoneNumber = `${formData.countryCode}${formData.clientPhone}`;
+
+    await supabase.from('live_loans').insert([{
+      client_name: formData.clientName, client_phone: fullPhoneNumber,
+      principal_amount: parseFloat(formData.principalAmount), installment_amount: parseFloat(formData.installmentAmount),
+      tenure_type: formData.tenure, total_cycles: parseInt(formData.totalInstallments),
+      interest_rate: parseFloat(formData.interestRate), status: 'Pending_Verification'
+    }]);
+
+    alert(`Success: Loan portfolio recorded for processing.`);
+    setFormData({ clientName: '', countryCode: '+91', clientPhone: '', principalAmount: '10000', installmentAmount: '0', tenure: 'Daily', totalInstallments: '100', interestRate: '24' });
+    fetchDynamicRealtimeMetrics();
+  };
+
+  const handleRecordCollection = async (loanId: string, currentCollected: number) => {
+    const amt = parseFloat(collectionAmount[loanId] || '0');
+    if (isNaN(amt) || amt <= 0) {
+      alert("Please specify a valid collection sum amount.");
+      return;
+    }
+
+    const nextCollectedSum = currentCollected + amt;
+    
+    const { error } = await supabase
+      .from('live_loans')
+      .update({ total_collected: nextCollectedSum })
+      .eq('id', loanId);
+
+    if (!error) {
+      alert(`Payment of ₹${amt.toLocaleString()} safely reconciled to database ledger entries.`);
+      setCollectionAmount(prev => ({ ...prev, [loanId]: '' }));
+      fetchDynamicRealtimeMetrics();
+    }
+  };
+
+  const handleToggleStatusComplete = async (loanId: string, currentStatus: string) => {
+    const targetStatus = currentStatus === 'Active' ? 'Settled_Done' : 'Active';
+    const msg = targetStatus === 'Settled_Done' 
+      ? "Mark this loan account as fully completed, cleared, and closed?" 
+      : "Re-activate this credit row ledger timeline to active monitoring status?";
+    
+    if (!confirm(msg)) return;
+
+    const { error } = await supabase
+      .from('live_loans')
+      .update({ status: targetStatus })
+      .eq('id', loanId);
+
+    if (!error) {
+      fetchDynamicRealtimeMetrics();
+    }
+  };
+
+  const handleDeleteLoanRecord = async (loanId: string) => {
+    if (!confirm("Are you absolutely sure you want to completely erase this loan record from the operational view ledger tables? This action cannot be reversed.")) return;
+
+    const { error } = await supabase
+      .from('live_loans')
+      .delete()
+      .eq('id', loanId);
+
+    if (!error) {
+      alert("Ledger target row dropped successfully.");
+      fetchDynamicRealtimeMetrics();
+    } else {
+      alert(`Execution interrupted: ${error.message}`);
+    }
   };
 
   const injectCompanyCapital = async (e: React.FormEvent) => {
@@ -122,29 +194,13 @@ export default function ProtectedAdminDashboard() {
     fetchDynamicRealtimeMetrics();
   };
 
-  const handleCreateLoan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const fullPhoneNumber = `${formData.countryCode}${formData.clientPhone}`;
-
-    await supabase.from('live_loans').insert([{
-      client_name: formData.clientName, client_phone: fullPhoneNumber,
-      principal_amount: parseFloat(formData.principalAmount), installment_amount: parseFloat(formData.installmentAmount),
-      tenure_type: formData.tenure, total_cycles: parseInt(formData.totalInstallments),
-      interest_rate: parseFloat(formData.interestRate), status: 'Pending_Verification'
-    }]);
-
-    alert(`Success! Ledger profile underwritten safely to cloud data storage nodes.`);
-    setFormData({ clientName: '', countryCode: '+91', clientPhone: '', principalAmount: '10000', installmentAmount: '0', tenure: 'Daily', totalInstallments: '100', interestRate: '24' });
-    fetchDynamicRealtimeMetrics();
-  };
-
   const highRiskLoans = loans.filter(l => (l.tenure === 'Daily' && l.missedDays > 3) || (l.tenure === 'Monthly' && l.missedDays > 10));
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-slate-950 text-slate-50 antialiased">
-      <header className="flex flex-wrap justify-between items-center gap-4 mb-8 pb-4 border-b border-slate-800">
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-slate-950 text-slate-50 antialiased font-sans">
+      <header className="flex flex-wrap justify-between items-center gap-4 mb-8 pb-4 border-b border-slate-900">
         <div>
-          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">SLU CONTROL PANEL</h1>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">SLU CONTROL PANEL</h1>
           <p className="text-sm text-slate-500">Autonomous Admin Console</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -153,7 +209,7 @@ export default function ProtectedAdminDashboard() {
           <button type="button" onClick={() => setActiveTab('charts')} className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${activeTab === 'charts' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-900 text-slate-400 border-slate-800'}`}><BarChart3 className="h-3.5 w-3.5" /> Analytics</button>
           <button type="button" onClick={() => setActiveTab('risk')} className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${activeTab === 'risk' ? 'bg-rose-600 text-white border-rose-600' : 'bg-slate-900 text-rose-500 border-slate-800'}`}><AlertTriangle className="h-3.5 w-3.5" /> Risk Radar ({highRiskLoans.length})</button>
           <button type="button" onClick={() => setActiveTab('profile')} className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${activeTab === 'profile' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-900 text-slate-400 border-slate-800'}`}><User className="h-3.5 w-3.5" /> Admin Profile</button>
-          <button type="button" onClick={handleTerminateSession} className="p-2.5 rounded-xl bg-rose-950/40 text-rose-400 border border-rose-900/30 hover:bg-rose-950/80 transition-all" title="Terminate Secure Session"><LogOut className="h-4 w-4" /></button>
+          <button type="button" onClick={() => { supabase.auth.signOut(); router.push('/auth/login'); }} className="p-2.5 rounded-xl bg-rose-950/40 text-rose-400 border border-rose-900/30 hover:bg-rose-950/80 transition-all"><LogOut className="h-4 w-4" /></button>
         </div>
       </header>
 
@@ -178,7 +234,7 @@ export default function ProtectedAdminDashboard() {
             </div>
           </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm h-fit">
               <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-white"><UserPlus className="text-emerald-500" /> New Client Onboarding</h2>
               <form onSubmit={handleCreateLoan} className="space-y-4">
@@ -235,35 +291,84 @@ export default function ProtectedAdminDashboard() {
               </form>
             </div>
 
-            <div className="lg:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm">
+            <div className="xl:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm">
               <h2 className="text-lg font-bold mb-4 text-white">Underwritten Ledger Profiles</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                      <th className="py-3">Client details</th>
-                      <th className="py-3">Tenure</th>
-                      <th className="py-3">Principal</th>
-                      <th className="py-3">Yield Collected</th>
-                      <th className="py-3">Status</th>
+                      <th className="py-3 pr-2">Client Details</th>
+                      <th className="py-3 px-2">Structure</th>
+                      <th className="py-3 px-2">Principal</th>
+                      <th className="py-3 px-2">Collected</th>
+                      <th className="py-3 px-2">Quick Reconcile</th>
+                      <th className="py-3 px-2 text-center">Status Action</th>
+                      <th className="py-3 pl-2 text-right">Erase</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
                     {loans.map((loan) => {
                       const isRisk = (loan.tenure === 'Daily' && loan.missedDays > 3) || (loan.tenure === 'Monthly' && loan.missedDays > 10);
                       return (
-                        <tr key={loan.id} className={`hover:bg-slate-950/30 transition-colors ${isRisk ? 'bg-rose-500/5' : ''}`}>
-                          <td className="py-3.5 font-medium text-slate-100">
-                            <div className="font-semibold">{loan.name}</div>
+                        <tr key={loan.id} className={`hover:bg-slate-950/40 transition-colors ${isRisk ? 'bg-rose-500/5' : ''}`}>
+                          <td className="py-3.5 pr-2 font-medium">
+                            <div className="font-semibold text-slate-100">{loan.name}</div>
                             <div className="text-xs text-slate-500">{loan.phone}</div>
                           </td>
-                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 text-xs font-semibold">{loan.tenure}</span></td>
-                          <td className="py-3.5 font-bold text-slate-100">₹{loan.principal.toLocaleString()}</td>
-                          <td className="py-3.5 font-bold text-emerald-400">₹{loan.collected.toLocaleString()}</td>
-                          <td className="py-3.5">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${isRisk ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-400' : loan.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                              {isRisk ? 'High Risk Esc' : loan.status}
-                            </span>
+                          <td className="py-3.5 px-2">
+                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-bold uppercase tracking-wider">{loan.tenure}</span>
+                          </td>
+                          <td className="py-3.5 px-2 font-bold text-slate-100">₹{loan.principal.toLocaleString()}</td>
+                          <td className="py-3.5 px-2 font-bold text-emerald-400">₹{loan.collected.toLocaleString()}</td>
+                          
+                          {/* QUICK RECONCILE COLUMN */}
+                          <td className="py-3.5 px-2">
+                            <div className="flex items-center gap-1">
+                              <input 
+                                type="number" 
+                                placeholder="₹ Amt" 
+                                value={collectionAmount[loan.id] || ''} 
+                                onChange={e => setCollectionAmount({ ...collectionAmount, [loan.id]: e.target.value })}
+                                className="w-20 p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white text-center font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              />
+                              <button 
+                                type="button" 
+                                onClick={() => handleRecordCollection(loan.id, loan.collected)}
+                                className="p-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all"
+                                title="Reconcile Payment"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* DYNAMIC SETTLED / ACTIVE STATUS CONTROL */}
+                          <td className="py-3.5 px-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatusComplete(loan.id, loan.status)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black tracking-wider border uppercase transition-all ${
+                                loan.status === 'Settled_Done'
+                                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-600 hover:text-white'
+                                  : loan.status === 'Active'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-amber-600/20 hover:text-amber-400 hover:border-amber-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-emerald-600 hover:text-white'
+                              }`}
+                            >
+                              {loan.status === 'Settled_Done' ? '✅ Settled' : loan.status === 'Active' ? 'Mark Done' : loan.status}
+                            </button>
+                          </td>
+
+                          {/* DELETE ROW ICON BLOCK */}
+                          <td className="py-3.5 pl-2 text-right">
+                            <button 
+                              type="button" 
+                              onClick={() => handleDeleteLoanRecord(loan.id)}
+                              className="p-2 text-slate-500 hover:text-rose-400 transition-colors"
+                              title="Delete Ledger Entry"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </td>
                         </tr>
                       );
