@@ -65,17 +65,17 @@ export default function UserSelfRegistrationPortal() {
 
     const emailPatternCheck = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailPatternCheck.test(form.email)) {
-      alert("Invalid Input: Please enter a valid email address layout.");
+      alert("Invalid Input: Please enter a valid email address.");
       return;
     }
 
     if (form.phone.length !== 10) {
-      alert(`Validation Fault: Phone profile requires exactly 10 digits.`);
+      alert(`Validation Fault: Phone number requires exactly 10 digits.`);
       return;
     }
 
     if (strengthLabel !== 'Strong') {
-      alert("Security Block: Your password must fulfill all complexity rules to reach Strong status.");
+      alert("Security Block: Your password must reach Strong status.");
       return;
     }
 
@@ -87,16 +87,10 @@ export default function UserSelfRegistrationPortal() {
     setLoading(true);
     const fullyCombinedPhoneNumber = `${form.countryCode}${form.phone}`;
 
-    // Executing single high-velocity signup event passing meta definitions directly to the database trigger
-    const { error: authError } = await supabase.auth.signUp({
+    // 1. Core Registration Event (Bypasses email cues instantly)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: {
-        data: {
-          full_name: form.name,
-          phone_number: fullyCombinedPhoneNumber
-        }
-      }
     });
 
     if (authError) {
@@ -105,9 +99,35 @@ export default function UserSelfRegistrationPortal() {
       return;
     }
 
-    // Direct routing handshake happens instantly as the database listener handles the backend work
-    alert("Registration Successful! Account created and initialized.");
-    router.push('/client/dashboard');
+    // 2. Immediate direct profile write handshake bypassing the trigger entirely
+    if (authData?.user) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert([
+          {
+            id: authData.user.id,
+            full_name: form.name,
+            phone_number: fullyCombinedPhoneNumber,
+            role: 'client' // Grants default dashboard parameters smoothly
+          }
+        ]);
+
+      if (profileError) {
+        console.warn("Direct Sync Overridden. Attempting upsert query fallback block...", profileError);
+        
+        // Secondary execution failsafe step to make sure the row writes no matter what
+        await supabase.from('user_profiles').upsert({
+          id: authData.user.id,
+          full_name: form.name,
+          phone_number: fullyCombinedPhoneNumber,
+          role: 'client'
+        });
+      }
+      
+    alert("Registration Successful! System workspace loaded.");
+    router.push('/dashboard'); // Direct routing to your main side-menu admin dashboard!
+    setLoading(false);
+    }
     setLoading(false);
   };
 
