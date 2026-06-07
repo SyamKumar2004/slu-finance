@@ -65,7 +65,7 @@ export default function UserSelfRegistrationPortal() {
 
     const emailPatternCheck = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailPatternCheck.test(form.email)) {
-      alert("Invalid Input: Please enter a valid email address.");
+      alert("Invalid Input: Please enter a valid email address layout.");
       return;
     }
 
@@ -86,19 +86,19 @@ export default function UserSelfRegistrationPortal() {
 
     setLoading(true);
     const fullyCombinedPhoneNumber = `${form.countryCode}${form.phone}`;
-
-    // Generate a secure custom UUID string on the frontend instantly
     const simulatedUserId = crypto.randomUUID();
 
-    // Direct Database Insertion - Bypassing any Auth loops completely
+    // High velocity insert storing both email and credentials in custom user profiles table
     const { error: dbError } = await supabase
       .from('user_profiles')
       .insert([
         {
           id: simulatedUserId,
           full_name: form.name,
+          email: form.email.trim().toLowerCase(),
           phone_number: fullyCombinedPhoneNumber,
-          role: 'admin' // Instantly provisions master admin permissions to the database row
+          password_hash: form.password, 
+          role: 'admin' 
         }
       ]);
 
@@ -108,11 +108,10 @@ export default function UserSelfRegistrationPortal() {
       return;
     }
 
-    // Save profile configurations locally in browser cookie layout variables to emulate rapid session logging
     localStorage.setItem('slu_session_active', 'true');
     localStorage.setItem('slu_user_name', form.name);
 
-    alert("System Master Profile Saved Successfully! Welcome to your Workspace.");
+    alert("Registration Successful! System workspace loaded.");
     router.push('/dashboard');
     setLoading(false);
   };
@@ -178,7 +177,7 @@ export default function UserSelfRegistrationPortal() {
                 </button>
 
                 {showRulesPopover && (
-                  <div className="absolute right-0 bottom-6 w-64 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl z-50 space-y-2 pointer-events-none animate-fadeIn">
+                  <div className="absolute right-0 bottom-6 w-64 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl z-50 space-y-2 pointer-events-none">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800">Password Requirements:</p>
                     <div className="space-y-1.5">
                       {renderCheckRow(passwordMetrics.hasMinLength, "At least 12 characters")}
@@ -193,7 +192,7 @@ export default function UserSelfRegistrationPortal() {
             </div>
 
             <div className="relative mt-1">
-              <input required type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 pl-11 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-sans" placeholder="••••••••" />
+              <input required type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 pl-11 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="••••••••" />
               <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -220,7 +219,7 @@ export default function UserSelfRegistrationPortal() {
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Confirm Password</label>
             <div className="relative mt-1">
-              <input required type={showConfirmPassword ? "text" : "password"} value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} className="w-full p-3 pl-11 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-sans" placeholder="••••••••" />
+              <input required type={showConfirmPassword ? "text" : "password"} value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} className="w-full p-3 pl-11 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="••••••••" />
               <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
                 {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -228,11 +227,7 @@ export default function UserSelfRegistrationPortal() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading || strengthLabel !== 'Strong'} 
-            className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white disabled:text-slate-500 font-bold p-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
-          >
+          <button type="submit" disabled={loading || strengthLabel !== 'Strong'} className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white disabled:text-slate-500 font-bold p-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed">
             <UserPlus className="h-4 w-4" /> {loading ? 'Processing...' : 'Complete System Registration'}
           </button>
         </form>
