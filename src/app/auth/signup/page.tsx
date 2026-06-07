@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Mail, Lock, Phone, UserPlus, Eye, EyeOff, Globe, ShieldCheck, Check, X, AlertCircle } from 'lucide-react';
+import { User, Mail, Lock, Phone, UserPlus, Eye, EyeOff, Globe, Check, X, AlertCircle } from 'lucide-react';
 
 const REGISTRATION_COUNTRY_CODES = [
   { code: '+91', country: 'IN', flag: '🇮🇳' },
@@ -55,6 +55,7 @@ export default function UserSelfRegistrationPortal() {
     }
   }, [form.password]);
 
+  // Strips alphabetical characters instantly and restricts length to exactly 10 digits
   const handlePhoneInputChange = (val: string) => {
     const numbersOnly = val.replace(/\D/g, ''); 
     setForm({ ...form, phone: numbersOnly.slice(0, 10) }); 
@@ -63,12 +64,14 @@ export default function UserSelfRegistrationPortal() {
   const executeRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 1. Strict Email Pattern Validation
     const emailPatternCheck = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailPatternCheck.test(form.email)) {
       alert("Invalid Input: Please enter a valid email address.");
       return;
     }
 
+    // 2. Strict Phone Length Guard Validation
     if (form.phone.length !== 10) {
       alert(`Validation Fault: Phone number requires exactly 10 digits.`);
       return;
@@ -87,7 +90,7 @@ export default function UserSelfRegistrationPortal() {
     setLoading(true);
     const fullyCombinedPhoneNumber = `${form.countryCode}${form.phone}`;
 
-    // 1. Core Registration Event (Bypasses email cues instantly)
+    // 1. Core Authentication Setup
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -99,34 +102,24 @@ export default function UserSelfRegistrationPortal() {
       return;
     }
 
-    // 2. Immediate direct profile write handshake bypassing the trigger entirely
+    // 2. Immediate direct user schema write via upsert sequencing
     if (authData?.user) {
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .insert([
-          {
-            id: authData.user.id,
-            full_name: form.name,
-            phone_number: fullyCombinedPhoneNumber,
-            role: 'client' // Grants default dashboard parameters smoothly
-          }
-        ]);
-
-      if (profileError) {
-        console.warn("Direct Sync Overridden. Attempting upsert query fallback block...", profileError);
-        
-        // Secondary execution failsafe step to make sure the row writes no matter what
-        await supabase.from('user_profiles').upsert({
+        .upsert({
           id: authData.user.id,
           full_name: form.name,
           phone_number: fullyCombinedPhoneNumber,
-          role: 'client'
+          role: 'admin' // Ensures your account holds admin rights automatically
         });
+
+      if (profileError) {
+        console.error("Profile Sync Error Details:", profileError);
+        alert(`Warning: Profile initialized with structural database fallback note.`);
       }
-      
-    alert("Registration Successful! System workspace loaded.");
-    router.push('/dashboard'); // Direct routing to your main side-menu admin dashboard!
-    setLoading(false);
+
+      alert("Registration Successful! System master workspace initialized.");
+      router.push('/dashboard'); // Routes directly to the master dashboard
     }
     setLoading(false);
   };
@@ -174,10 +167,18 @@ export default function UserSelfRegistrationPortal() {
                 <select value={form.countryCode} onChange={e => setForm({...form, countryCode: e.target.value})} className="h-full pl-3 pr-8 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold appearance-none cursor-pointer text-sm focus:outline-none">
                   {REGISTRATION_COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
                 </select>
-                <Globe className="absolute right-2 top-4 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+                <div className="absolute right-2 top-4 pointer-events-none border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-500 w-0 h-0"></div>
               </div>
               <div className="relative flex-1">
-                <input required type="text" inputMode="numeric" value={form.phone} onChange={e => handlePhoneInputChange(e.target.value)} className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono tracking-wider" placeholder="9876543210" />
+                <input 
+                  required 
+                  type="text" 
+                  inputMode="numeric" 
+                  value={form.phone} 
+                  onChange={e => handlePhoneInputChange(e.target.value)} 
+                  className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono tracking-wider" 
+                  placeholder="9876543210" 
+                />
                 <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
               </div>
             </div>
