@@ -99,7 +99,7 @@ export default function ProtectedAdminDashboard() {
     if (targetPrincipal > availableLiquidCash) { alert(`Access Blocked: Insufficient reserves! Available cash float is ₹${availableLiquidCash.toLocaleString()}`); return; }
 
     const { error } = await supabase.from('live_loans').insert([{
-      client_name: formData.clientName, client_email: formData.clientEmail, client_phone: `${formData.countryCode}${formData.clientPhone.replace(/\D/g, '')}`,
+      client_name: formData.clientName, client_email: formData.clientEmail, client_phone: `${formData.countryCode}${formData.clientPhone}`,
       principal_amount: targetPrincipal, installment_amount: parseFloat(formData.installmentAmount), tenure_type: formData.tenure, total_cycles: parseInt(formData.totalInstallments), interest_rate: parseFloat(formData.interestRate),
       status: 'Active', government_id_number: formData.governmentId, residential_address: formData.residentialAddress, collateral_asset_details: formData.collateralDetails, guarantor_emergency_contact: formData.guarantorContact,
       uploaded_id_document_url: idDocumentName || 'ID_Verification_Attached.pdf', signed_agreement_document_url: signedFormName || 'Signed_Terms_Agreement.pdf', loan_issued_date: new Date().toISOString()
@@ -116,7 +116,7 @@ export default function ProtectedAdminDashboard() {
       client_name: editForm.name, client_email: editForm.email, client_phone: editForm.phone, residential_address: editForm.address, collateral_asset_details: editForm.collateral
     }).eq('id', editingLoan.id);
 
-    if (!error) { setEditingLoan(null); fetchDynamicRealtimeMetrics(); }
+    if (!error) { alert("Success: Changes saved!"); setEditingLoan(null); fetchDynamicRealtimeMetrics(); }
   };
 
   const handleAddCapital = async (e: React.FormEvent) => {
@@ -125,7 +125,7 @@ export default function ProtectedAdminDashboard() {
     if (isNaN(amt) || amt <= 0) return;
     setLoadingFunds(true);
     const { error } = await supabase.from('company_capital').insert([{ amount: amt, notes: capitalInput.notes.trim() || 'Manual Capital Injection' }]);
-    if (!error) { setCapitalInput({ amount: '', notes: '' }); fetchDynamicRealtimeMetrics(); }
+    if (error) { alert(`Error: ${error.message}`); } else { setCapitalInput({ amount: '', notes: '' }); fetchDynamicRealtimeMetrics(); }
     setLoadingFunds(false);
   };
 
