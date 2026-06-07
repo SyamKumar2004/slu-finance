@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Mail, Lock, Phone, UserPlus, Eye, EyeOff, Globe, CheckCircle2, Check, X, AlertCircle } from 'lucide-react';
+import { User, Mail, Lock, Phone, UserPlus, Eye, EyeOff, Globe, ShieldCheck, Check, X, AlertCircle } from 'lucide-react';
 
 const REGISTRATION_COUNTRY_CODES = [
   { code: '+91', country: 'IN', flag: '🇮🇳' },
@@ -18,7 +18,6 @@ export default function UserSelfRegistrationPortal() {
   
   const [form, setForm] = useState({ name: '', email: '', countryCode: '+91', phone: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -56,25 +55,22 @@ export default function UserSelfRegistrationPortal() {
     }
   }, [form.password]);
 
-  // Real-time sanitation engine: Strips non-numeric inputs and locks length at 10 digits
-  const handlePhoneInputChange = (value: string) => {
-    const sanitizedDigits = value.replace(/\D/g, ''); 
-    setForm({ ...form, phone: sanitizedDigits.slice(0, 10) });
+  const handlePhoneInputChange = (val: string) => {
+    const numbersOnly = val.replace(/\D/g, ''); 
+    setForm({ ...form, phone: numbersOnly.slice(0, 10) }); 
   };
 
   const executeRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Strict Regex Email Format Verification Gate
-    const emailValidationRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailValidationRegex.test(form.email)) {
-      alert("Validation Error: Please enter a legitimate, well-formed email address (e.g., example@domain.com).");
+    const emailPatternCheck = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailPatternCheck.test(form.email)) {
+      alert("Invalid Input: Please enter a valid email address layout.");
       return;
     }
 
-    // 2. Strict Length Evaluation Gate for the Contact Phone
     if (form.phone.length !== 10) {
-      alert(`Validation Fault: Phone profile numbers must contain exactly 10 digits. Current input evaluates to ${form.phone.length} digits.`);
+      alert(`Validation Fault: Phone profile requires exactly 10 digits.`);
       return;
     }
 
@@ -91,31 +87,27 @@ export default function UserSelfRegistrationPortal() {
     setLoading(true);
     const fullyCombinedPhoneNumber = `${form.countryCode}${form.phone}`;
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // Executing single high-velocity signup event passing meta definitions directly to the database trigger
+    const { error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
+      options: {
+        data: {
+          full_name: form.name,
+          phone_number: fullyCombinedPhoneNumber
+        }
+      }
     });
 
     if (authError) {
-      alert(`Registration Exception: ${authError.message}`);
+      alert(`Registration Error: ${authError.message}`);
       setLoading(false);
       return;
     }
 
-    if (authData?.user) {
-      const { error: profileError } = await supabase.from('user_profiles').insert([{
-        id: authData.user.id,
-        full_name: form.name,
-        phone_number: fullyCombinedPhoneNumber,
-        role: 'client' 
-      }]);
-
-      if (profileError) {
-        alert(`Database Profile Sync Failure: ${profileError.message}`);
-      } else {
-        setIsSuccess(true);
-      }
-    }
+    // Direct routing handshake happens instantly as the database listener handles the backend work
+    alert("Registration Successful! Account created and initialized.");
+    router.push('/client/dashboard');
     setLoading(false);
   };
 
@@ -129,25 +121,6 @@ export default function UserSelfRegistrationPortal() {
   const bar1Color = strengthLabel === 'Low' ? 'bg-rose-500' : strengthLabel === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500';
   const bar2Color = strengthLabel === 'Medium' ? 'bg-amber-500' : strengthLabel === 'Strong' ? 'bg-emerald-500' : 'bg-slate-800/60';
   const bar3Color = strengthLabel === 'Strong' ? 'bg-emerald-500' : 'bg-slate-800/60';
-
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 font-sans">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-4">
-          <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 mx-auto rounded-full flex items-center justify-center">
-            <CheckCircle2 className="h-10 w-10" />
-          </div>
-          <h2 className="text-2xl font-black text-white">Profile Configured!</h2>
-          <p className="text-sm text-slate-400 leading-relaxed">
-            Your secure account has been finalized successfully. You can now access your user profile.
-          </p>
-          <div className="pt-4 border-t border-slate-800">
-            <Link href="/auth/login" className="text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors uppercase tracking-wider">Proceed to Sign In</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 font-sans">
@@ -184,16 +157,7 @@ export default function UserSelfRegistrationPortal() {
                 <Globe className="absolute right-2 top-4 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
               </div>
               <div className="relative flex-1">
-                {/* Implemented numeric key validation restrictions */}
-                <input 
-                  required 
-                  type="text" 
-                  inputMode="numeric"
-                  value={form.phone} 
-                  onChange={e => handlePhoneInputChange(e.target.value)} 
-                  className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono tracking-wider" 
-                  placeholder="9876543210" 
-                />
+                <input required type="text" inputMode="numeric" value={form.phone} onChange={e => handlePhoneInputChange(e.target.value)} className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono tracking-wider" placeholder="9876543210" />
                 <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
               </div>
             </div>
@@ -203,13 +167,7 @@ export default function UserSelfRegistrationPortal() {
             <div className="flex justify-between items-center relative">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Establish Password</label>
               <div className="relative flex items-center">
-                <button 
-                  type="button"
-                  onClick={() => setShowRulesPopover(!showRulesPopover)}
-                  onMouseEnter={() => setShowRulesPopover(true)}
-                  onMouseLeave={() => setShowRulesPopover(false)}
-                  className="text-slate-400 hover:text-emerald-400 transition-colors p-1"
-                >
+                <button type="button" onClick={() => setShowRulesPopover(!showRulesPopover)} onMouseEnter={() => setShowRulesPopover(true)} onMouseLeave={() => setShowRulesPopover(false)} className="text-slate-400 hover:text-emerald-400 transition-colors p-1">
                   <AlertCircle className="h-4 w-4" />
                 </button>
 
