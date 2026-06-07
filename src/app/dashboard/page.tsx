@@ -26,10 +26,11 @@ export default function ProtectedAdminDashboard() {
   const [totalRegisteredUsers, setTotalRegisteredUsers] = useState<number>(0); 
   const [metrics, setMetrics] = useState({ totalLent: 0, totalCollected: 0, pendingDues: 0 });
   
-  const [adminProfile, setAdminProfile] = useState<{ name: string; email: string; role: string }>({ name: 'Admin User', email: '', role: 'Admin' });
+  // Clean initialization state without placeholder naming fallbacks
+  const [adminProfile, setAdminProfile] = useState<{ name: string; email: string; role: string }>({ name: 'Admin', email: '', role: 'Admin' });
   const [selectedLoanFile, setSelectedLoanFile] = useState<any | null>(null);
 
-  // Input state handlers
+  // Expanded Input states mapping to new core DB pillars
   const [formData, setFormData] = useState({ 
     clientName: '', clientEmail: '', countryCode: '+91', clientPhone: '', 
     principalAmount: '10000', installmentAmount: '0', 
@@ -63,6 +64,7 @@ export default function ProtectedAdminDashboard() {
     const { data: profile } = await supabase.from('user_profiles').select('full_name, role').eq('id', user.id).single();
     if (profile?.role !== 'admin') { await supabase.auth.signOut(); router.push('/auth/login'); return; }
 
+    // Binds your precise registered identity name to the system session component state
     setAdminProfile({
       name: profile?.full_name || 'System Admin',
       email: user.email || '',
@@ -99,7 +101,6 @@ export default function ProtectedAdminDashboard() {
       });
     }
 
-    // Fetch individual injection list details asynchronously
     const { data: capitalRows } = await supabase.from('company_capital').select('*').order('created_at', { ascending: false });
     if (capitalRows) {
       setCapitalHistory(capitalRows);
@@ -125,7 +126,7 @@ export default function ProtectedAdminDashboard() {
       collateral_asset_details: formData.collateralDetails, guarantor_emergency_contact: formData.guarantorContact
     }]);
 
-    alert(`Success: Loan file generated for ${formData.clientName}.`);
+    alert(`Success: Onboarded ${formData.clientName}. Loan entry created as Pending Verification!`);
     setFormData({ 
       clientName: '', clientEmail: '', countryCode: '+91', clientPhone: '', principalAmount: '10000', installmentAmount: '0', tenure: 'Daily', totalInstallments: '100', interestRate: '24',
       governmentId: '', residentialAddress: '', collateralDetails: '', guarantorContact: ''
@@ -205,11 +206,11 @@ export default function ProtectedAdminDashboard() {
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-50 antialiased font-sans">
       
-      {/* SIDEBAR NAVIGATION BAR (Fixed brand name and cleaned bottom spacing) */}
+      {/* SIDEBAR NAVIGATION BAR */}
       <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0">
         <div className="p-5">
           <div className="mb-8 px-2 flex items-center gap-2">
-            <div className="w-2.5 h-6 bg-emerald-500 rounded-full animate-pulse"></div>
+            <div className="w-2.5 h-6 bg-emerald-500 rounded-full"></div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-white">SLU FINANCE</h1>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Secure Ledger Console</p>
@@ -235,11 +236,11 @@ export default function ProtectedAdminDashboard() {
         </div>
       </aside>
 
-      {/* WORKSPACE CONTENT SHEETS Container */}
+      {/* WORKSPACE MAIN LAYOUT VIEWS */}
       <main className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-7xl relative">
         
-        {/* Dynamic Header Greeting Strip */}
-        <header className="mb-8 flex justify-between items-center bg-slate-900/40 border border-slate-900 p-4 rounded-2xl">
+        {/* Dynamic Header Greeting Strip - Explicitly renders Admin's true Name */}
+        <header className="mb-8 flex justify-between items-center bg-slate-900/40 border border-slate-900 p-4 rounded-2xl animate-fadeIn">
           <div>
             <h2 className="text-lg font-bold text-white">Welcome Back, {adminProfile.name} 👋</h2>
             <p className="text-xs text-slate-500 font-medium">Terminal Mode: Principal Ledger Overseer</p>
@@ -345,7 +346,7 @@ export default function ProtectedAdminDashboard() {
           </div>
         )}
 
-        {/* VIEW 2: NEW CLIENT ONBOARDING FORMS */}
+        {/* VIEW 2: NEW CLIENT ONBOARDING */}
         {activeTab === 'onboarding' && (
           <div className="max-w-3xl mx-auto bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl animate-fadeIn">
             <div className="mb-6">
@@ -443,12 +444,9 @@ export default function ProtectedAdminDashboard() {
           </div>
         )}
 
-        {/* =========================================================================
-            VIEW 3: UPGRADED CAPITAL VAULT MANAGEMENT (FORM + LOGS LIST ADDED)
-           ========================================================================= */}
+        {/* VIEW 3: CAPITAL POOL RESERVES INTERACTIVE HISTORY VAULT */}
         {activeTab === 'funds' && (
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
-            {/* Left Form Panel: Add Injections */}
             <div className="md:col-span-1 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm h-fit">
               <h3 className="text-md font-black text-white flex items-center gap-1.5 mb-2">
                 <PlusCircle className="text-emerald-400 h-4 w-4" /> Inject Capital
@@ -470,7 +468,6 @@ export default function ProtectedAdminDashboard() {
               </form>
             </div>
 
-            {/* Right List Panel: Pool Net Worth & Historic Audit Logs */}
             <div className="md:col-span-2 space-y-4">
               <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-center relative overflow-hidden">
                 <span className="text-xs text-slate-400 block uppercase font-bold tracking-wider">Liquid Net Capital Pool Reserves</span>
@@ -512,11 +509,11 @@ export default function ProtectedAdminDashboard() {
           </div>
         )}
 
-        {/* VIEW 5: COLLECTION RISK COMPONENT */}
+        {/* VIEW 5: DELINQUENCY RISK RADAR */}
         {activeTab === 'risk' && (
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
             {highRiskLoans.length === 0 ? (
-              <div className="col-span-full bg-slate-900 p-12 text-center rounded-2xl border text-slate-400 font-medium border-slate-800">No active payment defaults flagged.</div>
+              <div className="col-span-full bg-slate-900 p-12 text-center rounded-2xl border text-slate-400 font-medium border-slate-800">No payment defaults flagged.</div>
             ) : highRiskLoans.map(loan => (
               <div key={loan.id} className="bg-slate-900 border-2 border-rose-500/30 rounded-2xl p-5">
                 <h3 className="text-lg font-bold text-white">{loan.name}</h3>
@@ -527,9 +524,7 @@ export default function ProtectedAdminDashboard() {
           </section>
         )}
 
-        {/* =========================================================================
-            VIEW 6: UPGRADED ADMIN PROFILE (NOW WITH DETAILED SECURITY SYSTEM INFO)
-           ========================================================================= */}
+        {/* VIEW 6: UPGRADED ADMIN SETTINGS PROFILE */}
         {activeTab === 'profile' && (
           <div className="max-w-xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl animate-fadeIn space-y-6">
             <div className="text-center pb-4 border-b border-slate-800/60">
@@ -574,7 +569,7 @@ export default function ProtectedAdminDashboard() {
           </div>
         )}
 
-        {/* DETAILED MODAL OVERLAY POPUP */}
+        {/* DETAILED OVERLAY MODAL SHEET PROFILE RECOGNITION */}
         {selectedLoanFile && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative space-y-4 animate-scaleIn">
@@ -582,7 +577,7 @@ export default function ProtectedAdminDashboard() {
                 <X className="h-4 w-4" />
               </button>
               <div>
-                <h3 className="text-xl font-black text-white flex items-center gap-2">品 Debtor Background File</h3>
+                <h3 className="text-xl font-black text-white flex items-center gap-2">📄 Debtor Background File</h3>
                 <p className="text-xs text-slate-500 uppercase tracking-widest mt-0.5">Verification & Collateral Ledger</p>
               </div>
               <div className="space-y-3 pt-2 border-t border-slate-800 text-sm">
