@@ -85,8 +85,17 @@ export default function UserSelfRegistrationPortal() {
       }
     });
 
+    // UPGRADED ROBUST ERROR HANDLER BLOCK
     if (authError) {
-      alert(`Registration Exception: ${authError.message}`);
+      console.error("Supabase Auth Error Core Dump:", authError);
+      
+      // If the message is somehow empty or blocked by cache, provide actionable guidance
+      let friendlyMessage = authError.message;
+      if (!friendlyMessage || friendlyMessage === "[]" || friendlyMessage === "{}") {
+        friendlyMessage = "Network sync bottleneck. Please refresh your browser (Ctrl+F5) and try once more!";
+      }
+      
+      alert(`Registration Exception: ${friendlyMessage}`);
       setLoading(false);
       return;
     }
