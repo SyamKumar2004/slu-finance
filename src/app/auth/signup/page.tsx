@@ -1,12 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Mail, Lock, Phone, UserPlus, Eye, EyeOff, Globe, Check, X, AlertCircle } from 'lucide-react';
+import { User, Mail, Lock, Phone, UserPlus, Eye, EyeOff, Check, X, AlertCircle } from 'lucide-react';
 
 export default function UserSelfRegistrationPortal() {
-  const supabase = createClient();
   const router = useRouter();
   
   const [form, setForm] = useState({ name: '', email: '', countryCode: '+91', phone: '', password: '', confirmPassword: '' });
@@ -45,21 +43,31 @@ export default function UserSelfRegistrationPortal() {
     setLoading(true);
     const fullyCombinedPhoneNumber = `${form.countryCode}${form.phone.replace(/\D/g, '')}`;
 
-    const { error: dbError } = await supabase.from('user_profiles').insert([{
-      full_name: form.name.trim(),
-      email: form.email.trim().toLowerCase(),
-      phone_number: fullyCombinedPhoneNumber,
-      password_hash: form.password,
-      role: 'admin'
-    }]);
+    // Connects directly to our secure backend API route
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: fullyCombinedPhoneNumber,
+        password: form.password
+      })
+    });
 
-    if (dbError) { alert(`Registration Database Error: ${dbError.message}`); setLoading(false); return; }
+    const result = await response.json();
+
+    if (!response.ok || result.error) {
+      alert(`Registration System Error: ${result.error || 'Server connection failed'}`);
+      setLoading(false);
+      return;
+    }
 
     localStorage.setItem('slu_session_active', 'true');
     localStorage.setItem('slu_user_name', form.name.trim());
     localStorage.setItem('slu_user_email', form.email.trim().toLowerCase());
 
-    alert("Registration Successful! Profile metrics configured.");
+    alert("Registration Successful! Welcome to SLU Finance.");
     router.push('/dashboard');
     setLoading(false);
   };
@@ -97,7 +105,7 @@ export default function UserSelfRegistrationPortal() {
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact Phone Number</label>
             <div className="flex gap-2 mt-1">
               <select value={form.countryCode} onChange={e => setForm({...form, countryCode: e.target.value})} className="pl-3 pr-8 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold text-sm appearance-none focus:outline-none"><option value="+91">🇮🇳 +91</option></select>
-              <input required type="text" value={form.phone} onChange={e => setForm({...form, phone: e.target.value.replace(/\D/g, '').slice(0,10)})} className="flex-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="9876543210" />
+              <input required type="text" value={form.phone} onChange={e => setForm({...form, phone: e.target.value.replace(/\D/g, '').slice(0,10)})} className="flex-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="7075516605" />
             </div>
           </div>
           <div>
@@ -128,7 +136,7 @@ export default function UserSelfRegistrationPortal() {
             </div>
           </div>
           <button type="submit" disabled={loading || strengthLabel !== 'Strong'} className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white disabled:text-slate-500 font-bold p-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm uppercase">
-            <UserPlus className="h-4 w-4" /> {loading ? 'Processing...' : 'Complete System Registration'}
+            <UserPlus className="h-4 w-4" /> {loading ? 'PROCESSING...' : 'Complete System Registration'}
           </button>
         </form>
         <div className="mt-6 text-center text-xs text-slate-400 border-t border-slate-800/60 pt-4">
