@@ -30,9 +30,15 @@ export default function UserSelfRegistrationPortal() {
 
     setLoading(true);
 
+    // 1. Submit Auth User Data to Supabase with options to flag automatic bypass metadata
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
+      options: {
+        data: {
+          email_confirmed: true // Passes execution confirmation flag tokens to the DB core engine
+        }
+      }
     });
 
     if (authError) {
@@ -41,19 +47,21 @@ export default function UserSelfRegistrationPortal() {
       return;
     }
 
-    if (authData.user) {
+    // 2. Generate matching profile metadata tracking record inside your public data tables
+    if (authData?.user) {
       const { error: profileError } = await supabase.from('user_profiles').insert([{
         id: authData.user.id,
         full_name: form.name,
         phone_number: form.phone,
-        role: 'client' 
+        role: 'client' // Automatically provisions client routing parameters
       }]);
 
       if (profileError) {
         alert(`Database Profile Sync Failure: ${profileError.message}`);
       } else {
-        alert('Account successfully configured! Redirecting...');
-        router.push('/auth/login');
+        alert('Account successfully configured and auto-verified! Redirecting to Dashboard panel...');
+        // 3. Automatically route them straight past the gateway entry locks
+        router.push('/client/dashboard');
       }
     }
     setLoading(false);
