@@ -1,12 +1,11 @@
+import './globals.css'; // Make sure this exact path matches where your globals.css is stored
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "SLU Finance | Premium Micro-Credit Ledger",
   description: "Secure localized ledger profile and capital vault tracking console.",
   icons: {
-    icon: "/favicon.ico", // Points directly to your clean new money icon asset folder
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favicon.ico",
   },
 };
 
@@ -17,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="bg-slate-950 text-slate-50 antialiased">{children}</body>
     </html>
   );
 }
