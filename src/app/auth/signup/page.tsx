@@ -22,8 +22,6 @@ export default function UserSelfRegistrationPortal() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // Interactive tracking for the dynamic rule icon click popover
   const [showRulesPopover, setShowRulesPopover] = useState(false);
 
   const [passwordMetrics, setPasswordMetrics] = useState({
@@ -58,8 +56,27 @@ export default function UserSelfRegistrationPortal() {
     }
   }, [form.password]);
 
+  // Real-time sanitation engine: Strips non-numeric inputs and locks length at 10 digits
+  const handlePhoneInputChange = (value: string) => {
+    const sanitizedDigits = value.replace(/\D/g, ''); 
+    setForm({ ...form, phone: sanitizedDigits.slice(0, 10) });
+  };
+
   const executeRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Strict Regex Email Format Verification Gate
+    const emailValidationRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailValidationRegex.test(form.email)) {
+      alert("Validation Error: Please enter a legitimate, well-formed email address (e.g., example@domain.com).");
+      return;
+    }
+
+    // 2. Strict Length Evaluation Gate for the Contact Phone
+    if (form.phone.length !== 10) {
+      alert(`Validation Fault: Phone profile numbers must contain exactly 10 digits. Current input evaluates to ${form.phone.length} digits.`);
+      return;
+    }
 
     if (strengthLabel !== 'Strong') {
       alert("Security Block: Your password must fulfill all complexity rules to reach Strong status.");
@@ -77,31 +94,27 @@ export default function UserSelfRegistrationPortal() {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: {
-        data: {
-          full_name: form.name,
-          phone_number: fullyCombinedPhoneNumber
-        }
-      }
     });
 
-    // UPGRADED ROBUST ERROR HANDLER BLOCK
     if (authError) {
-      console.error("Supabase Auth Error Core Dump:", authError);
-      
-      // If the message is somehow empty or blocked by cache, provide actionable guidance
-      let friendlyMessage = authError.message;
-      if (!friendlyMessage || friendlyMessage === "[]" || friendlyMessage === "{}") {
-        friendlyMessage = "Network sync bottleneck. Please refresh your browser (Ctrl+F5) and try once more!";
-      }
-      
-      alert(`Registration Exception: ${friendlyMessage}`);
+      alert(`Registration Exception: ${authError.message}`);
       setLoading(false);
       return;
     }
 
     if (authData?.user) {
-      setIsSuccess(true);
+      const { error: profileError } = await supabase.from('user_profiles').insert([{
+        id: authData.user.id,
+        full_name: form.name,
+        phone_number: fullyCombinedPhoneNumber,
+        role: 'client' 
+      }]);
+
+      if (profileError) {
+        alert(`Database Profile Sync Failure: ${profileError.message}`);
+      } else {
+        setIsSuccess(true);
+      }
     }
     setLoading(false);
   };
@@ -124,13 +137,12 @@ export default function UserSelfRegistrationPortal() {
           <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 mx-auto rounded-full flex items-center justify-center">
             <CheckCircle2 className="h-10 w-10" />
           </div>
-          <h2 className="text-2xl font-black text-white">Verification Sent!</h2>
+          <h2 className="text-2xl font-black text-white">Profile Configured!</h2>
           <p className="text-sm text-slate-400 leading-relaxed">
-            A secure link has been sent to <span className="text-emerald-400 font-semibold">{form.email}</span>. 
-            Open your inbox and click the activation link to complete verification.
+            Your secure account has been finalized successfully. You can now access your user profile.
           </p>
           <div className="pt-4 border-t border-slate-800">
-            <Link href="/auth/login" className="text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors uppercase tracking-wider">Return to Login</Link>
+            <Link href="/auth/login" className="text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors uppercase tracking-wider">Proceed to Sign In</Link>
           </div>
         </div>
       </div>
@@ -172,7 +184,16 @@ export default function UserSelfRegistrationPortal() {
                 <Globe className="absolute right-2 top-4 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
               </div>
               <div className="relative flex-1">
-                <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="XXXXXXXXXX" />
+                {/* Implemented numeric key validation restrictions */}
+                <input 
+                  required 
+                  type="text" 
+                  inputMode="numeric"
+                  value={form.phone} 
+                  onChange={e => handlePhoneInputChange(e.target.value)} 
+                  className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono tracking-wider" 
+                  placeholder="9876543210" 
+                />
                 <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
               </div>
             </div>
@@ -181,8 +202,6 @@ export default function UserSelfRegistrationPortal() {
           <div>
             <div className="flex justify-between items-center relative">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Establish Password</label>
-              
-              {/* COMPACT INTERACTIVE INFO BUTTON CONTAINER */}
               <div className="relative flex items-center">
                 <button 
                   type="button"
@@ -190,12 +209,10 @@ export default function UserSelfRegistrationPortal() {
                   onMouseEnter={() => setShowRulesPopover(true)}
                   onMouseLeave={() => setShowRulesPopover(false)}
                   className="text-slate-400 hover:text-emerald-400 transition-colors p-1"
-                  title="Click to view instructions"
                 >
                   <AlertCircle className="h-4 w-4" />
                 </button>
 
-                {/* HOVER / CLICK POPUP REQUIREMENT MODAL SLEEVE */}
                 {showRulesPopover && (
                   <div className="absolute right-0 bottom-6 w-64 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl z-50 space-y-2 pointer-events-none animate-fadeIn">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800">Password Requirements:</p>
@@ -219,7 +236,6 @@ export default function UserSelfRegistrationPortal() {
               </button>
             </div>
 
-            {/* DYNAMIC COMPACT LINE PROGRESS BAR - DIRECTLY BELOW INPUT */}
             {form.password.length > 0 && (
               <div className="mt-1.5 space-y-1">
                 <div className="h-1 w-full bg-slate-800 rounded-full flex gap-0.5 overflow-hidden">
