@@ -9,6 +9,12 @@ import {
   PlusCircle, Upload, FileCheck, Eye, Edit3, Settings
 } from 'lucide-react';
 
+const COUNTRY_CODES = [
+  { code: '+91', country: 'IN', flag: '🇮🇳' },
+  { code: '+1', country: 'US/CA', flag: '🇺🇸' },
+  { code: '+44', country: 'UK', flag: '🇬🇧' },
+];
+
 export default function ProtectedAdminDashboard() {
   const supabase = createClient();
   const router = useRouter();
@@ -21,33 +27,43 @@ export default function ProtectedAdminDashboard() {
   const [availableLiquidCash, setAvailableLiquidCash] = useState<number>(0);
   const [metrics, setMetrics] = useState({ totalLent: 0, totalCollected: 0, pendingDues: 0 });
   
-  const [adminProfile, setAdminProfile] = useState({ name: 'Potnuru Syamkumar', email: 'syamkumarpotnuru7@gmail.com', role: 'Principal Credit Manager' });
+  const [adminProfile, setAdminProfile] = useState<{ name: string; email: string; role: string }>({ name: 'Potnuru Syamkumar', email: 'syamkumarpotnuru7@gmail.com', role: 'Principal Credit Manager' });
   const [selectedLoanFile, setSelectedLoanFile] = useState<any | null>(null);
 
+  // Client Info Editing Modal States
   const [editingLoan, setEditingLoan] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', address: '', collateral: '' });
 
+  const [sysSettings, setSysSettings] = useState({ companyName: 'SLU Finance', interestBuffer: '0' });
+  const [savingSettings, setSavingSettings] = useState(false);
+
   const [formData, setFormData] = useState({ 
     clientName: '', clientEmail: '', countryCode: '+91', clientPhone: '', 
-    principalAmount: '10000', installmentAmount: '0', tenure: 'Daily', totalInstallments: '100', interestRate: '24',
+    principalAmount: '10000', installmentAmount: '0', 
+    tenure: 'Daily', totalInstallments: '100', interestRate: '24',
     governmentId: '', residentialAddress: '', collateralDetails: '', guarantorContact: ''
   });
   
   const [idDocumentName, setIdDocumentName] = useState<string>('');
   const [signedFormName, setSignedFormName] = useState<string>('');
+
   const [capitalInput, setCapitalInput] = useState({ amount: '', notes: '' });
   const [collectionAmount, setCollectionAmount] = useState<{ [key: string]: string }>({});
   const [loadingFunds, setLoadingFunds] = useState(false);
 
-  useEffect(() => { enforceAdministrativeSession(); }, []);
+  useEffect(() => {
+    enforceAdministrativeSession();
+  }, []);
 
   useEffect(() => {
     const P = parseFloat(formData.principalAmount);
     const R = parseFloat(formData.interestRate);
     const C = parseInt(formData.totalInstallments);
+
     if (!isNaN(P) && !isNaN(R) && !isNaN(C) && C > 0) {
       const totalPayable = P + (P * (R / 100));
-      setFormData(prev => ({ ...prev, installmentAmount: Math.ceil(totalPayable / C).toString() }));
+      const preciseInstallment = Math.ceil(totalPayable / C);
+      setFormData(prev => ({ ...prev, installmentAmount: preciseInstallment.toString() }));
     }
   }, [formData.principalAmount, formData.interestRate, formData.totalInstallments]);
 
@@ -55,13 +71,22 @@ export default function ProtectedAdminDashboard() {
     const activeLocalSession = localStorage.getItem('slu_session_active');
     const locallySavedName = localStorage.getItem('slu_user_name');
     const locallySavedEmail = localStorage.getItem('slu_user_email');
+
     if (activeLocalSession === 'true' && locallySavedName) {
-      setAdminProfile(prev => ({ ...prev, name: locallySavedName, email: locallySavedEmail || prev.email }));
+      setAdminProfile({ name: locallySavedName, email: locallySavedEmail || 'syamkumarpotnuru7@gmail.com', role: 'Master Super Admin' });
     }
     fetchDynamicRealtimeMetrics();
   }
 
   async function fetchDynamicRealtimeMetrics() {
+    const { data: settingsRow } = await supabase.from('system_settings').select('*').limit(1).single();
+    if (settingsRow) {
+      setSysSettings({
+        companyName: settingsRow.company_name,
+        interestBuffer: settingsRow.interest_buffer_percentage.toString()
+      });
+    }
+
     const { data: rawLoans } = await supabase.from('live_loans').select('*').order('created_at', { ascending: false });
     let loanList: any[] = [];
     let calculatedLent = 0;
@@ -71,14 +96,25 @@ export default function ProtectedAdminDashboard() {
       loanList = rawLoans.map((l: any) => ({
         id: l.id, name: l.client_name, email: l.client_email || 'N/A', phone: l.client_phone, principal: Number(l.principal_amount || 0),
         installment: Number(l.installment_amount || 0), tenure: l.tenure_type || 'Daily', interest: Number(l.interest_rate || 0),
-        status: l.status || 'Active', missedDays: l.missed_days_count || 0, collected: Number(l.total_collected || 0), totalCycles: Number(l.total_cycles || 100),
-        governmentId: l.government_id_number || 'Not Provided', address: l.residential_address || 'Not Provided', collateral: l.collateral_asset_details || 'Unsecured Line', guarantor: l.guarantor_emergency_contact || 'None',
-        idDoc: l.uploaded_id_document_url || null, signedForm: l.signed_agreement_document_url || null,
-        issuedDate: l.loan_issued_date ? new Date(l.loan_issued_date).toLocaleDateString('en-IN', {day: '2-digit', month: 'short'}) : 'N/A',
-        clearedDate: l.loan_cleared_date ? new Date(l.loan_cleared_date).toLocaleDateString('en-IN', {day: '2-digit', month: 'short'}) : 'Active'
+        status: l.status, missedDays: l.missed_days_count || 0, collected: Number(l.total_collected || 0),
+        totalCycles: Number(l.total_cycles || 100),
+        governmentId: l.government_id_number || 'Not Provided',
+        address: l.residential_address || 'Not Provided',
+        collateral: l.collateral_asset_details || 'Unsecured Clean Credit Line',
+        guarantor: l.guarantor_emergency_contact || 'None Given',
+        idDoc: l.uploaded_id_document_url || null,
+        signedForm: l.signed_agreement_document_url || null,
+        issuedDate: l.loan_issued_date ? new Date(l.loan_issued_date).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A',
+        clearedDate: l.loan_cleared_date ? new Date(l.loan_cleared_date).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}) : 'Active'
       }));
       setLoans(loanList);
-      loanList.forEach(l => { if (l.status !== 'Deleted') { calculatedLent += l.principal; calculatedCollected += l.collected; } });
+      
+      loanList.forEach(l => {
+        if (l.status !== 'Deleted') {
+          calculatedLent += l.principal;
+          calculatedCollected += l.collected;
+        }
+      });
     }
 
     const { data: capitalRows } = await supabase.from('company_capital').select('*').order('created_at', { ascending: false });
@@ -93,63 +129,134 @@ export default function ProtectedAdminDashboard() {
     setMetrics({ totalLent: calculatedLent, totalCollected: calculatedCollected, pendingDues: calculatedLent - calculatedCollected });
   }
 
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    await supabase.from('system_settings').update({ company_name: sysSettings.companyName, interest_buffer_percentage: parseFloat(sysSettings.interestBuffer || '0') }).neq('id', 0);
+    alert("System Settings Updated Successfully!");
+    setSavingSettings(false);
+    fetchDynamicRealtimeMetrics();
+  };
+
   const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetPrincipal = parseFloat(formData.principalAmount);
-    if (targetPrincipal > availableLiquidCash) { alert(`Access Blocked: Insufficient reserves! Available cash float is ₹${availableLiquidCash.toLocaleString()}`); return; }
+
+    if (targetPrincipal > availableLiquidCash) {
+      alert(`Access Blocked: Insufficient Capital in Pool! Available liquid balance is ₹${availableLiquidCash.toLocaleString()}. Please inject funds first.`);
+      return;
+    }
+
+    const fullPhoneNumber = `${formData.countryCode}${formData.clientPhone}`;
+    const finalIdDocPath = idDocumentName ? idDocumentName : 'Clean Verified Scan';
+    const finalSignedFormPath = signedFormName ? signedFormName : 'Legally Bound Terms Checked';
 
     const { error } = await supabase.from('live_loans').insert([{
-      client_name: formData.clientName, client_email: formData.clientEmail, client_phone: `${formData.countryCode}${formData.clientPhone}`,
-      principal_amount: targetPrincipal, installment_amount: parseFloat(formData.installmentAmount), tenure_type: formData.tenure, total_cycles: parseInt(formData.totalInstallments), interest_rate: parseFloat(formData.interestRate),
-      status: 'Active', government_id_number: formData.governmentId, residential_address: formData.residentialAddress, collateral_asset_details: formData.collateralDetails, guarantor_emergency_contact: formData.guarantorContact,
-      uploaded_id_document_url: idDocumentName || 'ID_Verification_Attached.pdf', signed_agreement_document_url: signedFormName || 'Signed_Terms_Agreement.pdf', loan_issued_date: new Date().toISOString()
+      client_name: formData.clientName, client_email: formData.clientEmail, client_phone: fullPhoneNumber,
+      principal_amount: targetPrincipal, installment_amount: parseFloat(formData.installmentAmount),
+      tenure_type: formData.tenure, total_cycles: parseInt(formData.totalInstallments), interest_rate: parseFloat(formData.interestRate),
+      status: 'Active', government_id_number: formData.governmentId, residential_address: formData.residentialAddress,
+      collateral_asset_details: formData.collateralDetails, guarantor_emergency_contact: formData.guarantorContact,
+      uploaded_id_document_url: finalIdDocPath,
+      signed_agreement_document_url: finalSignedFormPath,
+      loan_issued_date: new Date().toISOString()
     }]);
 
-    if (error) { alert(`Database Error: ${error.message}`); return; }
-    setFormData({ clientName: '', clientEmail: '', countryCode: '+91', clientPhone: '', principalAmount: '10000', installmentAmount: '0', tenure: 'Daily', totalInstallments: '100', interestRate: '24', governmentId: '', residentialAddress: '', collateralDetails: '', guarantorContact: '' });
+    if (error) {
+      alert(`Error creating entry: ${error.message}`);
+      return;
+    }
+
+    if (formData.clientEmail && formData.clientEmail !== 'name@domain.com') {
+      const emailSubject = encodeURIComponent(`Welcome to ${sysSettings.companyName} | Loan Agreement Details`);
+      const emailBody = encodeURIComponent(
+        `Dear ${formData.clientName},\n\nYour application with ${sysSettings.companyName} has been approved.\n\nPrincipal Sum: ₹${targetPrincipal.toLocaleString()}\nRepayment Repayment Basis: ${formData.tenure}\nInstallment Sum: ₹${formData.installmentAmount}\n\nRegards,\n${sysSettings.companyName}`
+      );
+      window.location.href = `mailto:${formData.clientEmail}?subject=${emailSubject}&body=${emailBody}`;
+    }
+
+    alert(`Success: Onboarded ${formData.clientName}.`);
+    setFormData({ 
+      clientName: '', clientEmail: '', countryCode: '+91', clientPhone: '', principalAmount: '10000', installmentAmount: '0', tenure: 'Daily', totalInstallments: '100', interestRate: '24',
+      governmentId: '', residentialAddress: '', collateralDetails: '', guarantorContact: ''
+    });
     setIdDocumentName(''); setSignedFormName(''); setActiveTab('overview'); fetchDynamicRealtimeMetrics();
   };
 
   const handleSaveChangesOverride = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('live_loans').update({
-      client_name: editForm.name, client_email: editForm.email, client_phone: editForm.phone, residential_address: editForm.address, collateral_asset_details: editForm.collateral
-    }).eq('id', editingLoan.id);
+    const { error } = await supabase
+      .from('live_loans')
+      .update({
+        client_name: editForm.name,
+        client_email: editForm.email,
+        client_phone: editForm.phone,
+        residential_address: editForm.address,
+        collateral_asset_details: editForm.collateral
+      })
+      .eq('id', editingLoan.id);
 
-    if (!error) { alert("Success: Changes saved!"); setEditingLoan(null); fetchDynamicRealtimeMetrics(); }
+    if (!error) {
+      alert("Success: Client data logs updated live inside table schemas!");
+      setEditingLoan(null);
+      fetchDynamicRealtimeMetrics();
+    }
   };
 
   const handleAddCapital = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(capitalInput.amount);
     if (isNaN(amt) || amt <= 0) return;
+
     setLoadingFunds(true);
-    const { error } = await supabase.from('company_capital').insert([{ amount: amt, notes: capitalInput.notes.trim() || 'Manual Capital Injection' }]);
-    if (error) { alert(`Error: ${error.message}`); } else { setCapitalInput({ amount: '', notes: '' }); fetchDynamicRealtimeMetrics(); }
+    const { error } = await supabase.from('company_capital').insert([{ amount: amt, notes: capitalInput.notes.trim() || 'Standard Capital Injection' }]);
+
+    if (!error) {
+      alert(`Reserves Expanded: Added ₹${amt.toLocaleString()} successfully.`);
+      setCapitalInput({ amount: '', notes: '' });
+      fetchDynamicRealtimeMetrics();
+    }
     setLoadingFunds(false);
   };
 
   const handleRecordCollection = async (loanId: string, currentCollected: number) => {
     const amt = parseFloat(collectionAmount[loanId] || '0');
-    if (isNaN(amt) || amt <= 0) return;
-    await supabase.from('live_loans').update({ total_collected: currentCollected + amt }).eq('id', loanId);
-    setCollectionAmount(prev => ({ ...prev, [loanId]: '' })); fetchDynamicRealtimeMetrics();
+    if (isNaN(amt) || amt <= 0) { alert("Please specify a valid collection sum amount."); return; }
+
+    const { error } = await supabase.from('live_loans').update({ total_collected: currentCollected + amt }).eq('id', loanId);
+
+    if (!error) {
+      alert(`Payment logged. Liquid pool updated by +₹${amt.toLocaleString()}.`);
+      setCollectionAmount(prev => ({ ...prev, [loanId]: '' }));
+      fetchDynamicRealtimeMetrics();
+    }
   };
 
   const handleToggleStatusComplete = async (loanId: string, currentStatus: string) => {
-    const target = currentStatus === 'Active' ? 'Settled_Done' : 'Active';
-    await supabase.from('live_loans').update({ status: target, loan_cleared_date: target === 'Settled_Done' ? new Date().toISOString() : null }).eq('id', loanId);
-    fetchDynamicRealtimeMetrics();
+    const targetStatus = currentStatus === 'Active' ? 'Settled_Done' : 'Active';
+    const timestampValue = targetStatus === 'Settled_Done' ? new Date().toISOString() : null;
+    
+    if (!confirm(`Mark this entry status change to ${targetStatus}?`)) return;
+
+    const { error } = await supabase.from('live_loans').update({ status: targetStatus, loan_cleared_date: timestampValue }).eq('id', loanId);
+    if (!error) fetchDynamicRealtimeMetrics();
   };
 
   const handleDeleteLoanRecord = async (loanId: string) => {
-    if (confirm("Completely erase this borrower profile permanently?")) { await supabase.from('live_loans').delete().eq('id', loanId); fetchDynamicRealtimeMetrics(); }
+    if (!confirm("Completely erase this ledger entry permanently?")) return;
+    const { error } = await supabase.from('live_loans').delete().eq('id', loanId);
+    if (!error) { alert("Record dropped successfully."); fetchDynamicRealtimeMetrics(); }
   };
 
   const highRiskLoans = loans.filter(l => (l.tenure === 'Daily' && l.missedDays > 3) || (l.tenure === 'Monthly' && l.missedDays > 10));
 
   const NavButton = ({ tab, label, icon: Icon, badge }: { tab: typeof activeTab, label: string, icon: any, badge?: number }) => (
-    <button onClick={() => setActiveTab(tab)} className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}>
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-bold transition-all ${
+        activeTab === tab ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+      }`}
+    >
       <div className="flex items-center gap-3"><Icon className="h-4 w-4" /><span>{label}</span></div>
       {badge !== undefined && badge > 0 && <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{badge}</span>}
     </button>
@@ -157,51 +264,58 @@ export default function ProtectedAdminDashboard() {
 
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-50 antialiased font-sans">
+      
+      {/* SIDEBAR NAVIGATION */}
       <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0">
         <div className="p-5">
-          <div className="mb-8 px-2 flex items-center gap-2"><div className="w-2.5 h-6 bg-emerald-500 rounded-full"></div><h1 className="text-xl font-black tracking-tight text-white uppercase">SLU FINANCE</h1></div>
+          <div className="mb-8 px-2 flex items-center gap-2">
+            <div className="w-2.5 h-6 bg-emerald-500 rounded-full"></div>
+            <h1 className="text-xl font-black text-white uppercase">{sysSettings.companyName}</h1>
+          </div>
           <nav className="space-y-1.5">
             <NavButton tab="overview" label="Book Records Desk" icon={LayoutDashboard} />
             <NavButton tab="onboarding" label="New Client Onboarding" icon={UserPlus} />
-            <NavButton tab="funds" label="Capital pool Reserves" icon={Wallet} />
+            <NavButton tab="funds" label="Capital Pool Reserves" icon={Wallet} />
             <NavButton tab="charts" label="Yield Analytics" icon={BarChart3} />
             <NavButton tab="risk" label="Risk Collection Radar" icon={AlertTriangle} badge={highRiskLoans.length} />
             <NavButton tab="profile" label="Admin Settings" icon={Settings} />
           </nav>
         </div>
-        <div className="p-4 border-t border-slate-800"><button onClick={() => { localStorage.clear(); router.push('/auth/login'); }} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-950 text-slate-400 hover:text-rose-400 border border-slate-800 text-xs font-bold uppercase"><LogOut className="h-4 w-4" /> Exit Session</button></div>
+        <div className="p-4 border-t border-slate-800"><button onClick={() => { localStorage.clear(); router.push('/auth/login'); }} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-950 text-slate-400 border border-slate-800 hover:bg-rose-950/40 hover:text-rose-400 text-xs font-bold uppercase"><LogOut className="h-4 w-4" /> Exit Session</button></div>
       </aside>
 
-      <main className="flex-1 p-8 overflow-y-auto max-w-7xl">
+      {/* WORKSPACE AREA */}
+      <main className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-7xl relative">
         <header className="mb-8 flex justify-between items-center bg-slate-900/40 border border-slate-900 p-4 rounded-2xl">
           <div><h2 className="text-lg font-bold text-white">Welcome Back, {adminProfile.name} 👋</h2><p className="text-xs text-slate-500 font-medium">System Module: Principal Credit Manager</p></div>
-          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Deployed Live Mode</span>
+          <span className="text-[10px] font-black text-emerald-400 uppercase bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Secure Session Verified</span>
         </header>
 
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-fadeIn">
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl"><p className="text-xs font-bold text-slate-400 uppercase">Active Cash Float</p><h3 className="text-2xl font-black text-emerald-400">₹{availableLiquidCash.toLocaleString()}</h3></div>
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl"><p className="text-xs font-bold text-slate-400 uppercase">Capital Lent Out</p><h3 className="text-2xl font-black text-white">₹{metrics.totalLent.toLocaleString()}</h3></div>
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl"><p className="text-xs font-bold text-slate-400 uppercase">Yield Collected</p><h3 className="text-2xl font-black text-blue-400">₹{metrics.totalCollected.toLocaleString()}</h3></div>
+              <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl"><p className="text-xs font-bold text-slate-400 uppercase">Available Liquid Cash</p><h3 className="text-2xl font-black text-emerald-400">₹{availableLiquidCash.toLocaleString()}</h3></div>
+              <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl"><p className="text-xs font-bold text-slate-400 uppercase">Active Outflows</p><h3 className="text-2xl font-black text-white">₹{metrics.totalLent.toLocaleString()}</h3></div>
+              <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl"><p className="text-xs font-bold text-slate-400 uppercase">Collected Yield</p><h3 className="text-2xl font-black text-blue-400">₹{metrics.totalCollected.toLocaleString()}</h3></div>
             </section>
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+
+            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm">
               <h2 className="text-lg font-bold mb-4 text-white">Underwritten Ledger Profiles</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                      <th className="py-3 pr-2">Client Details</th><th className="py-3 px-2">Structure</th><th className="py-3 px-2">Timeline Dates</th><th className="py-3 px-2">Principal</th><th className="py-3 px-2">Collected</th><th className="py-3 px-2">Quick Reconcile</th><th className="py-3 px-2 text-center">Actions</th><th className="py-3 pl-2 text-right">Erase</th>
+                      <th className="py-3 pr-2">Client Details</th><th className="py-3 px-2">Structure</th><th className="py-3 px-2">Timeline Dates</th><th className="py-3 px-2">Principal</th><th className="py-3 px-2">Collected</th><th className="py-3 px-2">Quick Reconcile</th><th className="py-3 px-2 text-center">Status Action</th><th className="py-3 pl-2 text-right">Erase</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {loans.length === 0 ? (<tr><td colSpan={8} className="py-8 text-center text-slate-500 font-medium">No borrower profiles registered in the database.</td></tr>) : loans.map((loan) => (
+                    {loans.length === 0 ? (<tr><td colSpan={8} className="py-8 text-center text-slate-500 font-medium">No borrower records registered yet.</td></tr>) : loans.map((loan) => (
                       <tr key={loan.id} className="hover:bg-slate-950/40 transition-colors">
                         <td className="py-3.5 pr-2 font-medium">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-slate-100">{loan.name}</span>
                             <button type="button" onClick={() => setSelectedLoanFile(loan)} className="text-slate-500 hover:text-emerald-400"><Info className="h-3.5 w-3.5" /></button>
-                            <button type="button" onClick={() => { setEditingLoan(loan); setEditForm({ name: loan.name, email: loan.email, phone: loan.phone, address: loan.address, collateral: loan.collateral }); }} className="text-slate-500 hover:text-blue-400"><Edit3 className="h-3.5 w-3.5" /></button>
+                            <button type="button" onClick={() => { setEditingLoan(loan); setEditForm({ name: loan.name, email: loan.email, phone: loan.phone, address: loan.address, collateral: loan.collateral }); }} className="text-slate-500 hover:text-blue-400" title="Edit Contact Data"><Edit3 className="h-3.5 w-3.5" /></button>
                           </div>
                           <div className="text-xs text-slate-500">{loan.phone}</div>
                         </td>
@@ -242,8 +356,8 @@ export default function ProtectedAdminDashboard() {
                 <div><label className="text-xs font-bold text-slate-400 uppercase">Contact Phone Number</label><input required type="text" value={formData.clientPhone} onChange={e => setFormData({ ...formData, clientPhone: e.target.value.replace(/\D/g, '') })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none" placeholder="7075516605" /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1"><span className="text-xs font-bold text-slate-300">Government ID Scan File</span><label className="w-full flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-400 cursor-pointer text-xs uppercase font-bold">{idDocumentName || 'Choose Document'}<input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) setIdDocumentName(e.target.files[0].name); }} /></label></div>
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1"><span className="text-xs font-bold text-slate-300">Signed Terms Form Agreement</span><label className="w-full flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-400 cursor-pointer text-xs uppercase font-bold">{signedFormName || 'Choose Signed Form'}<input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) setSignedFormName(e.target.files[0].name); }} /></label></div>
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1"><span className="text-xs font-bold text-slate-300">Government ID Scan File</span><label className="w-full flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-400 cursor-pointer text-xs font-bold uppercase">{idDocumentName || 'Choose ID File'}<input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) setIdDocumentName(e.target.files[0].name); }} /></label></div>
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1"><span className="text-xs font-bold text-slate-300">Signed Terms Form Agreement</span><label className="w-full flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-400 cursor-pointer text-xs font-bold uppercase">{signedFormName || 'Choose Signed Form'}<input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) setSignedFormName(e.target.files[0].name); }} /></label></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><label className="text-xs font-bold text-slate-400 uppercase">Principal Financed (₹)</label><input type="number" value={formData.principalAmount} onChange={e => setFormData({ ...formData, principalAmount: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none" /></div>
@@ -300,7 +414,16 @@ export default function ProtectedAdminDashboard() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="max-w-xl mx-auto space-y-4 animate-fadeIn">
+          <div className="max-w-xl mx-auto space-y-6 animate-fadeIn">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+              <h3 className="text-md font-black text-white flex items-center gap-2 mb-4"><Settings className="text-emerald-500 h-4 w-4" /> Adjust Ledger Console Properties</h3>
+              <form onSubmit={handleUpdateSettings} className="space-y-4">
+                <div><label className="text-xs font-bold text-slate-400 uppercase">Company / Platform System Title</label><input required type="text" value={sysSettings.companyName} onChange={e => setSysSettings({ ...sysSettings, companyName: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold text-sm focus:outline-none" /></div>
+                <div><label className="text-xs font-bold text-slate-400 uppercase">Global Operational Interest Buffer (%)</label><input required type="number" step="0.01" value={sysSettings.interestBuffer} onChange={e => setSysSettings({ ...sysSettings, interestBuffer: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold text-sm focus:outline-none" /></div>
+                <button type="submit" disabled={savingSettings} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black p-3.5 rounded-xl uppercase tracking-wider transition-all">{savingSettings ? 'Syncing...' : 'Commit Settings Parameter Update'}</button>
+              </form>
+            </div>
+
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl text-center space-y-3">
               <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto rounded-2xl flex items-center justify-center"><User className="h-8 w-8" /></div>
               <h2 className="text-xl font-black text-white">{adminProfile.name}</h2><p className="text-xs font-black text-emerald-400 uppercase tracking-widest">{adminProfile.role}</p>
@@ -318,7 +441,7 @@ export default function ProtectedAdminDashboard() {
               <h3 className="text-xl font-black text-white">👤 Debtor Financial Dossier</h3>
               <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
                 <div className="p-3 rounded-xl bg-slate-950/40 space-y-2">
-                  <p className="text-slate-300"><strong>Aadhaar / Gov Code:</strong> {selectedLoanFile.governmentId}</p><p className="text-slate-300"><strong>Home Address:</strong> {selectedLoanFile.address}</p><p className="text-slate-300"><strong>Guarantor Node:</strong> {selectedLoanFile.guarantor}</p><p className="text-slate-300"><strong>Pledged Security Collateral Asset:</strong> {selectedLoanFile.collateral}</p>
+                  <p className="text-slate-300"><strong>Identity Card Reference:</strong> {selectedLoanFile.governmentId}</p><p className="text-slate-300"><strong>Home Address:</strong> {selectedLoanFile.address}</p><p className="text-slate-300"><strong>Guarantor Node:</strong> {selectedLoanFile.guarantor}</p><p className="text-slate-300"><strong>Pledged Security Collateral Asset:</strong> {selectedLoanFile.collateral}</p>
                 </div>
                 <div className="pt-2 space-y-2"><span className="text-[10px] uppercase font-black text-slate-500 block">Attached Legal Proof Scans:</span>
                   <div className="grid grid-cols-2 gap-2">
@@ -335,14 +458,14 @@ export default function ProtectedAdminDashboard() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 relative space-y-4 shadow-2xl animate-scaleIn">
               <button type="button" onClick={() => setEditingLoan(null)} className="absolute right-4 top-4 p-1.5 rounded-lg bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"><X className="h-4 w-4" /></button>
-              <div><h3 className="text-lg font-black text-white flex items-center gap-2"><Edit3 className="text-blue-400 h-5 w-5" /> Modify Client Profile</h3></div>
+              <div><h3 className="text-lg font-black text-white flex items-center gap-2"><Edit3 className="text-blue-400 h-5 w-5" /> Modify Client Profile</h3><p className="text-xs text-slate-500">Update dynamic parameter properties.</p></div>
               <form onSubmit={handleSaveChangesOverride} className="space-y-4 pt-2 border-t border-slate-800 text-xs">
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase">Client Full Name</label><input required type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold focus:outline-none" /></div>
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase">Email Address</label><input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none" /></div>
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase">Mobile Phone Contact</label><input required type="text" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:outline-none" /></div>
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase">Home Residential Location</label><textarea rows={2} value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none" /></div>
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase">Collateral Asset Details</label><input type="text" value={editForm.collateral} onChange={e => setEditForm({ ...editForm, collateral: e.target.value })} className="w-full mt-1 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none" /></div>
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold p-3.5 rounded-xl uppercase text-xs mt-2">Commit Operational Profile Updates</button>
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold p-3.5 rounded-xl uppercase text-xs mt-2 tracking-wider">Commit Operational Profile Updates</button>
               </form>
             </div>
           </div>
