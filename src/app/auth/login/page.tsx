@@ -37,8 +37,9 @@ export default function UserSignInPortal() {
     // 2. Validate Password String Matching Directly Against the Record Column
     if (profile && profile.password_hash === form.password) {
       
-      // Save profile configuration state attributes locally to pass layout persistence guards
+      // SUCCESS GATES: Save profile session parameters dynamically from the authentic row context
       localStorage.setItem('slu_session_active', 'true');
+      localStorage.setItem('slu_user_id', profile.id); // MULTI-TENANT ISOLATION KEY
       localStorage.setItem('slu_user_name', profile.full_name || 'Potnuru Syamkumar');
       localStorage.setItem('slu_user_email', profile.email || 'syamkumarpotnuru7@gmail.com');
 

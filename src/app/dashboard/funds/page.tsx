@@ -62,10 +62,19 @@ export default function CapitalPoolReserves() {
     if (amt <= 0 || !sourceNote.trim()) return;
 
     setProcessing(true);
-    const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
+    
+    // Read the true session active profile key
+    const activeLenderUuid = localStorage.getItem('slu_user_id');
+    
+    // SAFETY CHECK GATE: Alert user if they need to log back in
+    if (!activeLenderUuid || activeLenderUuid === '00000000-0000-0000-0000-000000000000') {
+      alert("Session Sync Required: Your session token is outdated. Please sign out and sign back in once to sync multi-tenant parameters.");
+      setProcessing(false);
+      return;
+    }
 
     const { error } = await supabase.from('company_capital').insert([{
-      lender_id: activeLenderUuid, // STAMPS OPERATING LENDER ID FOR COMPARTMENTALIZATION
+      lender_id: activeLenderUuid,
       amount: amt,
       funding_source_notes: sourceNote.trim(),
       created_at: new Date().toISOString()
@@ -76,6 +85,9 @@ export default function CapitalPoolReserves() {
       setSourceNote('');
       alert("Capital Reserves Updated successfully!");
       loadIsolatedReserves();
+    } else {
+      console.error("Supabase Database Reject Error Details:", error);
+      alert(`Database Fault: ${error.message}`);
     }
     setProcessing(false);
   };
