@@ -1,17 +1,20 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { CheckCircle2, Clock, Check, Archive, Smartphone } from 'lucide-react';
+import { CheckCircle2, Clock, Check, Archive, Smartphone, ShieldCheck } from 'lucide-react';
 
 export default function BookRecordsDesk() {
   const supabase = createClient();
   const [loans, setLoans] = useState<any[]>([]);
+  const [adminName, setAdminName] = useState('Master Administrator');
   const [capitalMetrics, setCapitalMetrics] = useState({ float: 0, lent: 0, collected: 0 });
   const [reconcileAmounts, setReconcileAmounts] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(true);
 
   const loadDashboardLedger = useCallback(async () => {
     const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
+    const savedName = localStorage.getItem('slu_user_name');
+    if (savedName) setAdminName(savedName);
 
     const { data: capitalData } = await supabase
       .from('company_capital')
@@ -95,35 +98,48 @@ export default function BookRecordsDesk() {
   if (loading) return <div className="p-8 text-xs font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">Synchronizing Ledger Matrix...</div>;
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full max-w-6xl mx-auto">
       
-      {/* PROFESSIONAL METRICS METRIC PANEL GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Active Cash Float</span>
-          <h2 className="text-3xl font-black text-emerald-400 mt-1">₹{capitalMetrics.float.toLocaleString()}</h2>
+      {/* RESTORATION GREETING CARD HEADER BLOCK */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-white flex items-center gap-2">
+            Welcome Back, {adminName} 👋
+          </h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">Platform Role: Master Ledger Administrator</p>
         </div>
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Capital Lent Out</span>
-          <h2 className="text-3xl font-black text-white mt-1">₹{capitalMetrics.lent.toLocaleString()}</h2>
-        </div>
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Yield Collected</span>
-          <h2 className="text-3xl font-black text-blue-400 mt-1">₹{capitalMetrics.collected.toLocaleString()}</h2>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+          <ShieldCheck className="h-4 w-4" /> Live Operational Mode
         </div>
       </div>
 
-      {/* HARDENED DATA GRID VIEW */}
-      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-2xl">
+      {/* METRICS STATS BLOCKS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Active Cash Float</span>
+          <h2 className="text-2xl font-black text-emerald-400 mt-1">₹{capitalMetrics.float.toLocaleString()}</h2>
+        </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Capital Lent Out</span>
+          <h2 className="text-2xl font-black text-white mt-1">₹{capitalMetrics.lent.toLocaleString()}</h2>
+        </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Yield Collected</span>
+          <h2 className="text-2xl font-black text-blue-400 mt-1">₹{capitalMetrics.collected.toLocaleString()}</h2>
+        </div>
+      </div>
+
+      {/* LEDGER ARCHIVE INTERFACE DATA CARD CONTAINER */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-black text-white tracking-wide">Underwritten Ledger Profiles</h3>
+          <h3 className="text-sm font-black text-white tracking-wide">Underwritten Ledger Profiles</h3>
           <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1 sm:hidden">
-            <Smartphone className="h-3 w-3" /> Swipe left/right to scroll data rows
+            <Smartphone className="h-3 w-3" /> Swipe left/right to scroll
           </span>
         </div>
 
-        {/* TOUCH SCROLLING SAFE CONTENT WRAPPER */}
-        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+        {/* LIQUID RESPONSIVE OVERFLOW SWIPE SCROLL SHEET GATEWAY */}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <table className="w-full text-left text-xs font-semibold text-slate-400 min-w-[850px] table-auto">
             <thead>
               <tr className="border-b border-slate-800 text-[10px] uppercase text-slate-500 tracking-wider">
