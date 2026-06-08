@@ -75,7 +75,7 @@ export default function BookRecordsDesk() {
   }, [loadDashboardLedger]);
 
   const handleFinalAdminApproval = async (id: string) => {
-    const { error } = await supabase.from('live_loans').update({ status: 'Active' }).eq('id', id);
+    const { error = null } = await supabase.from('live_loans').update({ status: 'Active' }).eq('id', id);
     if (!error) {
       alert("Verification Approved: Capital has been officially deployed to the active asset register.");
       loadDashboardLedger();
@@ -87,7 +87,7 @@ export default function BookRecordsDesk() {
     if (typedAmt <= 0) return;
 
     const newTotal = currentCollected + typedAmt;
-    const { error } = await supabase.from('live_loans').update({ total_collected: newTotal }).eq('id', id);
+    const { error = null } = await supabase.from('live_loans').update({ total_collected: newTotal }).eq('id', id);
 
     if (!error) {
       setReconcileAmounts({ ...reconcileAmounts, [id]: '' });
@@ -95,74 +95,76 @@ export default function BookRecordsDesk() {
     }
   };
 
-  if (loading) return <div className="p-8 text-xs font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">Synchronizing Ledger Matrix...</div>;
+  if (loading) return <div className="p-8 text-sm font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">Synchronizing Ledger Matrix...</div>;
 
   return (
-    <div className="space-y-6 w-full max-w-6xl mx-auto">
+    <div className="space-y-8 w-full max-w-6xl mx-auto px-2">
       
-      {/* RESTORATION GREETING CARD HEADER BLOCK */}
-      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* HEADER BLOCK */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-7 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
         <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
+          <h2 className="text-2xl font-black text-white flex items-center gap-2">
             Welcome Back, {adminName} 👋
           </h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">Platform Role: Master Ledger Administrator</p>
+          <p className="text-sm text-slate-400 font-bold mt-1">Platform Role: Master Ledger Administrator</p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
-          <ShieldCheck className="h-4 w-4" /> Live Operational Mode
-        </div>
-      </div>
-
-      {/* METRICS STATS BLOCKS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Active Cash Float</span>
-          <h2 className="text-2xl font-black text-emerald-400 mt-1">₹{capitalMetrics.float.toLocaleString()}</h2>
-        </div>
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Capital Lent Out</span>
-          <h2 className="text-2xl font-black text-white mt-1">₹{capitalMetrics.lent.toLocaleString()}</h2>
-        </div>
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Yield Collected</span>
-          <h2 className="text-2xl font-black text-blue-400 mt-1">₹{capitalMetrics.collected.toLocaleString()}</h2>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-black uppercase tracking-wider">
+          <ShieldCheck className="h-5 w-5" /> Live Operational Mode
         </div>
       </div>
 
-      {/* LEDGER ARCHIVE INTERFACE DATA CARD CONTAINER */}
-      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-sm font-black text-white tracking-wide">Underwritten Ledger Profiles</h3>
-          <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1 sm:hidden">
-            <Smartphone className="h-3 w-3" /> Swipe left/right to scroll
+      {/* STAT CARDS MATRIX GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Active Cash Float</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-emerald-400 mt-2">₹{capitalMetrics.float.toLocaleString()}</h2>
+        </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Capital Lent Out</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-white mt-2">₹{capitalMetrics.lent.toLocaleString()}</h2>
+        </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Yield Collected</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-blue-400 mt-2">₹{capitalMetrics.collected.toLocaleString()}</h2>
+        </div>
+      </div>
+
+      {/* DATA CARD LAYOUT CONTAINER */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-5 sm:p-7 shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-black text-white tracking-wide">Underwritten Ledger Profiles</h3>
+          <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 sm:hidden">
+            <Smartphone className="h-4 w-4" /> Swipe left/right to scroll data rows
           </span>
         </div>
 
-        {/* LIQUID RESPONSIVE OVERFLOW SWIPE SCROLL SHEET GATEWAY */}
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <table className="w-full text-left text-xs font-semibold text-slate-400 min-w-[850px] table-auto">
+        {/* SWIPE OVERFLOW SECTION */}
+        <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-sm font-bold text-slate-300 min-w-[950px] table-auto">
             <thead>
-              <tr className="border-b border-slate-800 text-[10px] uppercase text-slate-500 tracking-wider">
-                <th className="pb-3 pl-2">Client Details</th>
-                <th className="pb-3">Structure</th>
-                <th className="pb-3">Timeline Status</th>
-                <th className="pb-3">Principal</th>
-                <th className="pb-3">Total Debt</th>
-                <th className="pb-3">Collected</th>
-                <th className="pb-3">Quick Reconcile</th>
-                <th className="pb-3 text-center pr-2">Actions</th>
+              <tr className="border-b border-slate-800 text-xs uppercase text-slate-400 tracking-wider font-black">
+                <th className="pb-4 pl-2">Client Details</th>
+                <th className="pb-4">Structure</th>
+                <th className="pb-4">Timeline Status</th>
+                <th className="pb-4">Principal</th>
+                <th className="pb-4">Total Debt</th>
+                <th className="pb-4">Collected</th>
+                <th className="pb-4">Quick Reconcile</th>
+                <th className="pb-4 text-center pr-2">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/40">
+            <tbody className="divide-y divide-slate-800/50">
               {loans.map((loan) => (
                 <tr key={loan.id} className={`transition-all ${loan.status === 'Closed' ? 'bg-slate-950/30 opacity-50' : 'hover:bg-slate-950/20'}`}>
-                  <td className="py-4 pl-2">
-                    <span className={`text-white font-black text-sm block ${loan.status === 'Closed' ? 'line-through text-slate-500' : ''}`}>{loan.client_name}</span>
-                    <span className="text-[10px] font-mono text-slate-500 block mt-0.5">{loan.client_phone}</span>
+                  <td className="py-5 pl-2">
+                    <span className={`text-white font-black text-base block ${loan.status === 'Closed' ? 'line-through text-slate-500' : ''}`}>{loan.client_name}</span>
+                    <span className="text-xs font-mono font-bold text-slate-500 block mt-1">{loan.client_phone}</span>
                   </td>
-                  <td className="py-4"><span className="px-2 py-0.5 bg-slate-950 rounded-md font-mono text-[10px] text-slate-400 border border-slate-800">{loan.tenure_type}</span></td>
-                  <td className="py-4">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wide block w-max uppercase border ${
+                  <td className="py-5">
+                    <span className="px-2.5 py-1 bg-slate-950 rounded-md font-mono text-xs text-slate-400 border border-slate-800 font-bold">{loan.tenure_type}</span>
+                  </td>
+                  <td className="py-5">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-wider block w-max uppercase border ${
                       loan.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
                       loan.status === 'Closed' ? 'bg-slate-800 text-slate-400 border-slate-700' :
                       loan.status === 'Customer_Accepted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
@@ -171,33 +173,33 @@ export default function BookRecordsDesk() {
                       {loan.status === 'Verification_Pending' ? '⚠️ Hold' : loan.status}
                     </span>
                   </td>
-                  <td className="py-4 font-bold text-slate-300">₹{Number(loan.principal_amount).toLocaleString()}</td>
-                  <td className="py-4 font-black text-white text-sm">₹{loan.totalDebt.toLocaleString()}</td>
-                  <td className="py-4 font-bold text-emerald-400">₹{Number(loan.total_collected || 0).toLocaleString()}</td>
+                  <td className="py-5 font-extrabold text-slate-200 text-sm">₹{Number(loan.principal_amount).toLocaleString()}</td>
+                  <td className="py-5 font-black text-white text-base">₹{loan.totalDebt.toLocaleString()}</td>
+                  <td className="py-5 font-extrabold text-emerald-400 text-sm">₹{Number(loan.total_collected || 0).toLocaleString()}</td>
                   
-                  <td className="py-4">
+                  <td className="py-5">
                     {loan.status === 'Active' ? (
-                      <div className="flex items-center gap-1.5">
-                        <input type="number" placeholder="₹" value={reconcileAmounts[loan.id] || ''} onChange={e => setReconcileAmounts({ ...reconcileAmounts, [loan.id]: e.target.value })} className="w-16 p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono text-xs focus:outline-none" />
-                        <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected)} className="p-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all font-bold"><Check className="h-3 w-3" /></button>
+                      <div className="flex items-center gap-2">
+                        <input type="number" placeholder="₹" value={reconcileAmounts[loan.id] || ''} onChange={e => setReconcileAmounts({ ...reconcileAmounts, [loan.id]: e.target.value })} className="w-20 p-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none font-bold" />
+                        <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected)} className="p-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all"><Check className="h-4 w-4 stroke-[3]" /></button>
                       </div>
                     ) : loan.status === 'Closed' ? (
-                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/5 px-2.5 py-0.5 rounded-lg border border-emerald-500/10 flex items-center gap-1 w-max">🎉 Cleared</span>
+                      <span className="text-xs font-black text-emerald-400 bg-emerald-500/5 px-3 py-1 rounded-lg border border-emerald-500/10 flex items-center gap-1 w-max">🎉 Cleared</span>
                     ) : (
-                      <span className="text-[10px] text-slate-600 italic font-medium">Awaiting Activation</span>
+                      <span className="text-xs text-slate-500 italic font-bold">Awaiting Activation</span>
                     )}
                   </td>
 
-                  <td className="py-4 text-center pr-2">
+                  <td className="py-5 text-center pr-2">
                     {loan.status === 'Active' ? (
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">🚀 Active</span>
+                      <span className="text-xs text-emerald-400 font-black uppercase tracking-wider">🚀 Active</span>
                     ) : loan.status === 'Closed' ? (
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-center gap-1"><Archive className="h-3 w-3" /> Archive Log</span>
+                      <span className="text-xs text-slate-500 font-black uppercase tracking-wider flex items-center justify-center gap-1"><Archive className="h-4 w-4" /> Archive Log</span>
                     ) : loan.status === 'Customer_Accepted' ? (
-                      <button type="button" onClick={() => handleFinalAdminApproval(loan.id)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider transition-all shadow-md flex items-center gap-1 mx-auto"><CheckCircle2 className="h-3.5 w-3.5" /> Approve Verification</button>
+                      <button type="button" onClick={() => handleFinalAdminApproval(loan.id)} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-1 mx-auto"><CheckCircle2 className="h-4 w-4" /> Approve Verification</button>
                     ) : (
-                      <div className="text-amber-500 font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 py-1.5 bg-amber-500/5 rounded-xl border border-amber-500/10 max-w-[180px] mx-auto select-none">
-                        <Clock className="h-3.5 w-3.5 text-amber-500" /> Awaiting Sign
+                      <div className="text-amber-500 font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 py-2 bg-amber-500/5 rounded-xl border border-amber-500/10 max-w-[200px] mx-auto select-none">
+                        <Clock className="h-4 w-4 text-amber-500" /> Awaiting Sign
                       </div>
                     )}
                   </td>
