@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize the backend admin engine client directly inside the route file
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Setup the database connection configuration objects locally inside the context stream
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { name, email, phone, password } = body;
 
-    // Clean formatting string configuration mapping
     const fullPhone = `+91${phone.replace(/\D/g, '')}`;
 
-    // Insert directly into user_profiles table schema parameters
+    // Direct insert to database bypassing client row level security blocks
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
       .insert([
@@ -39,6 +38,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
-// CRITICAL PRODUCTION BUILD CHECK FOR NEXT.JS App Router: 
-// Do NOT append or export any other custom functions (like executeQuery) below this line!
