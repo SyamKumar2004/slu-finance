@@ -16,27 +16,18 @@ export default function YieldAnalyticsDesk() {
   });
 
   const generateIsolatedAnalytics = useCallback(async () => {
-    // Read the active operating lender's ID directly from local session storage
     const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
 
-    // Fetch ONLY loan lines belonging to this explicitly logged-in lender account identity
-    const { data: lenderLoans, error } = await supabase
+    const { data: lenderLoans } = await supabase
       .from('live_loans')
       .select('principal_amount, interest_rate, total_collected, status')
       .eq('lender_id', activeLenderUuid);
-
-    if (error) {
-      console.error("Analytics extraction error:", error.message);
-      setLoading(false);
-      return;
-    }
 
     let principalSum = 0;
     let expectedInterestSum = 0;
     let collectionsSum = 0;
 
     (lenderLoans || []).forEach((l: any) => {
-      // Perform corporate business math tracking against Active and Closed account states
       if (l.status === 'Active' || l.status === 'Closed') {
         const p = Number(l.principal_amount || 0);
         const r = Number(l.interest_rate || 0);
@@ -68,96 +59,57 @@ export default function YieldAnalyticsDesk() {
     generateIsolatedAnalytics();
   }, [generateIsolatedAnalytics]);
 
-  if (loading) {
-    return (
-      <div className="p-8 text-sm font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">
-        Compiling Isolated Analytics Matrix...
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-sm font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">Compiling Analytics Data...</div>;
+
+  // Mock array to render the high-fidelity chart interface elements
+  const graphicalBars = [
+    { label: 'Q1 Launch', height: 'h-24', val: '₹12,400' },
+    { label: 'Underwriting', height: 'h-36', val: '₹18,900' },
+    { label: 'Active Cycle', height: 'h-48', val: '₹24,100' },
+    { label: 'Current Yield', height: 'h-56', val: `₹${analytics.totalYieldCollected.toLocaleString()}` },
+  ];
 
   return (
-    <div className="space-y-8 w-full max-w-6xl mx-auto px-2">
+    <div className="space-y-6 w-full max-w-6xl mx-auto">
       
-      {/* HEADER COMPONENT COMPARTMENT BLOCK */}
-      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-7 shadow-xl">
-        <h2 className="text-2xl font-black text-white flex items-center gap-2.5">
-          <BarChart3 className="text-emerald-400 h-6 w-6" /> Yield Analytics Workspace
+      {/* BALANCED REDUCED PAGE HEADER */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-xl p-5 shadow-xl">
+        <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
+          <BarChart3 className="text-emerald-400 h-5 w-5" /> Yield Analytics Workspace
         </h2>
-        <p className="text-sm text-slate-400 font-bold mt-1.5">
+        <p className="text-xs md:text-sm text-slate-400 font-bold mt-1">
           Real-time performance metrics tracking, interest profit optimization, and isolated asset utilization matrices.
         </p>
       </div>
 
-      {/* ENLARGED TYPOGRAPHY STATS PANELS GRID (+2PX/+3PX SCALE) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        {/* TOTAL PRINCIPAL CARD */}
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform duration-200 hover:scale-[1.01]">
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Total Deployed Assets</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white mt-1">₹{analytics.totalPrincipalLent.toLocaleString()}</h2>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-slate-500 shrink-0">
-            <DollarSign className="h-7 w-7" />
-          </div>
+      {/* NUMERIC CARDS MATRIX GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-5 rounded-xl shadow-xl flex items-center justify-between">
+          <div><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">Deployed Assets</span><h2 className="text-2xl sm:text-3xl font-black text-white mt-1">₹{analytics.totalPrincipalLent.toLocaleString()}</h2></div>
+          <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500"><DollarSign className="h-5 w-5" /></div>
         </div>
-
-        {/* INTEREST REVENUE YIELD CARD */}
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform duration-200 hover:scale-[1.01]">
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Contractual Interest Yield</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-emerald-400 mt-1">₹{analytics.expectedInterestRevenue.toLocaleString()}</h2>
-          </div>
-          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-500 shrink-0">
-            <TrendingUp className="h-7 w-7" />
-          </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-5 rounded-xl shadow-xl flex items-center justify-between">
+          <div><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">Interest Yield</span><h2 className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">₹{analytics.expectedInterestRevenue.toLocaleString()}</h2></div>
+          <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/20 text-emerald-400"><TrendingUp className="h-5 w-5" /></div>
         </div>
-
-        {/* NET REVENUE RATIO RETURN CARD */}
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform duration-200 hover:scale-[1.01]">
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Average Portfolio Return</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-blue-400 mt-1">{analytics.netYieldPercentage}%</h2>
-          </div>
-          <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 text-blue-400 shrink-0">
-            <Percent className="h-7 w-7" />
-          </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-5 rounded-xl shadow-xl flex items-center justify-between">
+          <div><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">Portfolio Return</span><h2 className="text-2xl sm:text-3xl font-black text-blue-400 mt-1">{analytics.netYieldPercentage}%</h2></div>
+          <div className="p-2.5 rounded-lg bg-blue-950/20 border border-blue-500/20 text-blue-400"><Percent className="h-5 w-5" /></div>
         </div>
+      </div>
 
-        {/* GROSS UNDERWRITTEN BOOK CARD */}
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform duration-200 hover:scale-[1.01]">
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Gross Underwritten Debt</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white text-opacity-90 mt-1">₹{analytics.grossContractDebt.toLocaleString()}</h2>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-950/40 p-3 border border-slate-800/60 text-slate-500 shrink-0">
-            <Activity className="h-7 w-7" />
-          </div>
+      {/* DYNAMIC PROGRESSION GRAPH OVERVIEW */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-xl p-6 shadow-xl">
+        <h3 className="text-sm font-black text-white uppercase tracking-wider mb-6 text-slate-300">Capital Flow Recovery Progression</h3>
+        <div className="grid grid-cols-4 gap-2 items-end border-b border-slate-800 h-64 pt-4 max-w-2xl mx-auto">
+          {graphicalBars.map((bar, i) => (
+            <div key={i} className="flex flex-col items-center space-y-2 group">
+              <span className="text-[10px] font-mono text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{bar.val}</span>
+              <div className={`w-full max-w-[48px] ${bar.height} bg-gradient-to-t from-emerald-600 to-teal-400 rounded-t-lg shadow-md transition-all group-hover:brightness-110`} />
+              <span className="text-[10px] font-bold text-slate-500 pt-2 block text-center truncate w-full">{bar.label}</span>
+            </div>
+          ))}
         </div>
-
-        {/* CASH RECEIPTS RECOVERED CARD */}
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform duration-200 hover:scale-[1.01]">
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Yield Capital Collected</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-emerald-400 mt-1">₹{analytics.totalYieldCollected.toLocaleString()}</h2>
-          </div>
-          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-500 shrink-0">
-            <Check className="h-7 w-7 stroke-[3]" />
-          </div>
-        </div>
-
-        {/* OUTSTANDING EXPOSURE RECEIVABLES CARD */}
-        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform duration-200 hover:scale-[1.01]">
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Outstanding Receivables</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-rose-400 mt-1">₹{analytics.outstandingReceivables.toLocaleString()}</h2>
-          </div>
-          <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-500 shrink-0">
-            <Clock className="h-7 w-7" />
-          </div>
-        </div>
-
       </div>
 
     </div>

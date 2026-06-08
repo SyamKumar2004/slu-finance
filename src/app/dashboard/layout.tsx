@@ -27,9 +27,9 @@ export default function DashboardLayoutShell({ children }: { children: React.Rea
   ];
 
   return (
-    <div className="min-h-screen bg-[#070b19] text-slate-100 flex flex-col md:flex-row antialiased font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-[#070b19] text-slate-100 flex flex-col md:flex-row antialiased font-sans">
       
-      {/* MOBILE HEADER - STICKS TO TOP */}
+      {/* MOBILE HEADER */}
       <header className="md:hidden w-full bg-[#0b132b] border-b border-slate-800/80 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
@@ -38,30 +38,27 @@ export default function DashboardLayoutShell({ children }: { children: React.Rea
         <button 
           type="button" 
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition-all"
+          className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400"
         >
           <Menu className="h-5 w-5" />
         </button>
       </header>
 
-      {/* DESKTOP & MOBILE SIDEBAR FRAME */}
+      {/* SIDEBAR NAVIGATION FRAME */}
       <aside className={`
         fixed inset-y-0 left-0 bg-[#0b132b] border-r border-slate-800/60 p-4 flex flex-col justify-between z-40 transition-all duration-300 ease-in-out
         md:relative md:transform-none md:flex shrink-0
-        ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+        ${isCollapsed ? 'md:w-20' : 'md:w-68'}
         ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
       `}>
         <div className="space-y-6">
-          {/* SIDEBAR TITLE BAR HEADER */}
           <div className="flex items-center justify-between h-12 px-2">
             {(!isCollapsed || isMobileOpen) && (
-              <div className="flex items-center gap-2.5 animate-fadeIn">
+              <div className="flex items-center gap-2.5">
                 <div className="h-3 w-3 rounded-full bg-emerald-400 shadow-md shadow-emerald-400/50" />
                 <span className="text-sm font-black tracking-widest text-white">SLU FINANCE</span>
               </div>
             )}
-            
-            {/* COLLAPSE TOGGLE BUTTON FOR DESKTOP VIEWS */}
             <button
               type="button"
               onClick={() => setIsCollapsed(!isCollapsed)}
@@ -71,8 +68,8 @@ export default function DashboardLayoutShell({ children }: { children: React.Rea
             </button>
           </div>
 
-          {/* DYNAMIC LIST LINKS GRID */}
-          <nav className="space-y-1">
+          {/* BALANCED SIDEBAR TEXT SIZES */}
+          <nav className="space-y-1.5">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.path;
@@ -82,36 +79,34 @@ export default function DashboardLayoutShell({ children }: { children: React.Rea
                   key={item.path}
                   href={item.path}
                   onClick={() => setIsMobileOpen(false)}
-                  title={item.name}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all ${
                     isActive 
-                      ? 'bg-emerald-600 text-white shadow-md border border-emerald-500/20' 
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-950/30'
+                      ? 'bg-emerald-600 text-white shadow-md border border-emerald-500/20 font-extrabold text-[13px] md:text-sm' 
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-950/30 font-bold text-[13px] md:text-sm'
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {showText && <span className="animate-fadeIn truncate">{item.name}</span>}
+                  <Icon className="h-4.5 w-4.5 shrink-0" />
+                  {showText && <span className="truncate">{item.name}</span>}
                 </Link>
               );
             })}
           </nav>
         </div>
 
-        {/* LOGOUT FOOTER BUTTON */}
         <div className="pt-4 border-t border-slate-800/40">
-          <Link href="/" className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-all py-3 bg-rose-950/10 border border-rose-900/20 rounded-xl">
-            <LogOut className="h-3.5 w-3.5" />
-            {(!isCollapsed || isMobileOpen) && <span className="animate-fadeIn">Exit Session</span>}
+          <Link href="/" className="flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-all py-3 bg-rose-950/10 border border-rose-900/20 rounded-xl">
+            <LogOut className="h-4 w-4" />
+            {(!isCollapsed || isMobileOpen) && <span>Exit Session</span>}
           </Link>
         </div>
       </aside>
 
-      {/* BLACK BACKDROP LAYER FOR CLOSING SLIDE DRAWER ON MOBILE */}
+      {/* BACKDROP FOR CLOSING DRAWER ON MOBILE */}
       {isMobileOpen && (
         <div onClick={() => setIsMobileOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" />
       )}
 
-      {/* MAIN SURFACE CANVAS LAYER CONTAINER */}
+      {/* CORE CANVAS WORKSPACE CONTAINER */}
       <main className="flex-1 w-full min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
         {children}
       </main>
