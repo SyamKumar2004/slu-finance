@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Wallet, TrendingUp, DollarSign, CheckCircle2, Trash2, Clock, Landmark } from 'lucide-react';
+import { CheckCircle2, Clock, Check, Archive } from 'lucide-react';
 
 export default function BookRecordsDesk() {
   const supabase = createClient();
@@ -29,24 +29,41 @@ export default function BookRecordsDesk() {
       const rate = Number(l.interest_rate || 0);
       const collected = Number(l.total_collected || 0);
       const totalDebt = principal + (principal * (rate / 100));
+      
+      // Determine if a loan should be handled as Closed based on total mathematical collections
+      let currentStatus = l.status;
+      if (collected >= totalDebt && totalDebt > 0 && l.status !== 'Closed') {
+        currentStatus = 'Closed';
+        // Proactively synchronize database row state if it hasn't been updated yet
+        supabase.from('live_loans').update({ status: 'Closed', loan_cleared_date: new Date().toISOString() }).eq('id', l.id).then();
+      }
 
-      if (l.status === 'Active') {
+      if (currentStatus === 'Active' || currentStatus === 'Closed') {
         totalLent += principal;
         totalCollected += collected;
       }
 
       return {
         ...l,
+        status: currentStatus,
         totalDebt: totalDebt,
-        remainingBalance: totalDebt - collected
+        remainingBalance: Math.max(0, totalDebt - collected)
       };
+    });
+
+    // BUSINESS RULE SORTING SYSTEM: New entries and active items first, Closed records at the very end
+    const sortedLoans = processedLoans.sort((a, b) => {
+      if (a.status === 'Closed' && b.status !== 'Closed') return 1;
+      if (a.status !== 'Closed' && b.status === 'Closed') return -1;
+      // Secondary sort: Keep newest entries at the top within their group layouts
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
     // Pure Double-Entry Math: Float = Injected + Collected - Deployed
     const activeCashFloat = totalInjected + totalCollected - totalLent;
 
     setCapitalMetrics({ float: activeCashFloat, lent: totalLent, collected: totalCollected });
-    setLoans(processedLoans);
+    setLoans(sortedLoans);
     setLoading(false);
   }, [supabase]);
 
@@ -54,7 +71,6 @@ export default function BookRecordsDesk() {
     loadDashboardLedger();
   }, [loadDashboardLedger]);
 
-  // Master Final Verification Action Trigger
   const handleFinalAdminApproval = async (id: string) => {
     const { error } = await supabase
       .from('live_loans')
@@ -79,6 +95,7 @@ export default function BookRecordsDesk() {
 
     if (!error) {
       setReconcileAmounts({ ...reconcileAmounts, [id]: '' });
+      alert("Collection logged successfully!");
       loadDashboardLedger();
     }
   };
@@ -88,7 +105,7 @@ export default function BookRecordsDesk() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto font-sans p-4">
       
-      {/* FINANCIAL OVERVIEW METRIC CARD ROWS */}
+      {/* METRIC BOARDS OVERVIEW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Active Cash Float</span>
@@ -104,7 +121,7 @@ export default function BookRecordsDesk() {
         </div>
       </div>
 
-      {/* CORE UNDERWRITTEN LEDGER MATRIX TABLE */}
+      {/* RECONCILE PROFILE DATAGRID SURFACE */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-md font-black text-white mb-4">Underwritten Ledger Profiles</h3>
         <div className="overflow-x-auto">
@@ -123,48 +140,51 @@ export default function BookRecordsDesk() {
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {loans.map((loan) => (
-                <tr key={loan.id} className="hover:bg-slate-950/20 transition-all">
+                <tr key={loan.id} className={`transition-all ${loan.status === 'Closed' ? 'bg-slate-950/40 opacity-60' : 'hover:bg-slate-950/20'}`}>
                   <td className="py-4">
-                    <span className="text-white font-black block">{loan.client_name}</span>
+                    <span className={`text-white font-black block ${loan.status === 'Closed' ? 'line-through text-slate-500' : ''}`}>{loan.client_name}</span>
                     <span className="text-[10px] font-mono text-slate-500 block mt-0.5">{loan.client_phone}</span>
                   </td>
                   <td className="py-4"><span className="px-2 py-0.5 bg-slate-950 rounded-md font-mono text-[10px] text-slate-400 border border-slate-800">{loan.tenure_type}</span></td>
                   <td className="py-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold block w-max uppercase border ${
                       loan.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                      loan.status === 'Closed' ? 'bg-slate-800 text-slate-400 border-slate-700' :
                       loan.status === 'Customer_Accepted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
                       'bg-amber-500/10 text-amber-500 border-amber-500/20'
                     }`}>
-                      {loan.status === 'Verification_Pending' ? '⚠️ Hold' : loan.status.replace('_', ' ')}
+                      {loan.status === 'Verification_Pending' ? '⚠️ Hold' : loan.status}
                     </span>
                   </td>
                   <td className="py-4 font-bold text-slate-300">₹{Number(loan.principal_amount).toLocaleString()}</td>
                   <td className="py-4 font-black text-white">₹{loan.totalDebt.toLocaleString()}</td>
                   <td className="py-4 font-bold text-emerald-400">₹{Number(loan.total_collected || 0).toLocaleString()}</td>
                   
-                  {/* QUICK RECONCILE COLUMN */}
+                  {/* DYNAMIC RECONCILE COLUMN VALUE HANDLER */}
                   <td className="py-4">
                     {loan.status === 'Active' ? (
                       <div className="flex items-center gap-1.5">
                         <input type="number" placeholder="₹" value={reconcileAmounts[loan.id] || ''} onChange={e => setReconcileAmounts({ ...reconcileAmounts, [loan.id]: e.target.value })} className="w-16 p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono text-xs focus:outline-none" />
-                        <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected)} className="p-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all font-bold">✓</button>
+                        <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected)} className="p-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all font-bold"><Check className="h-3 w-3" /></button>
                       </div>
+                    ) : loan.status === 'Closed' ? (
+                      <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/5 px-2 py-1 rounded-lg border border-emerald-500/10 flex items-center gap-1 w-max">🎉 Cleared</span>
                     ) : (
-                      <span className="text-[10px] text-slate-600 italic font-medium">Awaiting Live Activation</span>
+                      <span className="text-[10px] text-slate-600 italic font-medium">Awaiting Activation</span>
                     )}
                   </td>
 
-                  {/* SMART ACTIONS MATRIX COLUMN */}
+                  {/* SMART ACTIONS SWITCHER MODULE */}
                   <td className="py-4 text-center">
                     {loan.status === 'Active' ? (
-                      <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider flex items-center justify-center gap-1">✨ Line Live</span>
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">🚀 Active Account</span>
+                    ) : loan.status === 'Closed' ? (
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-center gap-1"><Archive className="h-3 w-3" /> Historical Log</span>
                     ) : loan.status === 'Customer_Accepted' ? (
-                      // UNLOCK ONLY WHEN CUSTOMER SIGNS
                       <button type="button" onClick={() => handleFinalAdminApproval(loan.id)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider transition-all shadow-md flex items-center gap-1 mx-auto"><CheckCircle2 className="h-3.5 w-3.5" /> Approve Verification</button>
                     ) : (
-                      // SAFETY GATE: LOCK AND WAIT FOR USER SIGNATURE
                       <div className="text-amber-500 font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 py-1.5 bg-amber-500/5 rounded-xl border border-amber-500/10 max-w-[180px] mx-auto select-none">
-                        <Clock className="h-3.5 w-3.5 text-amber-500 animate-spin" style={{ animationDuration: '3s' }} /> Awaiting Client Signature
+                        <Clock className="h-3.5 w-3.5 text-amber-500" /> Waiting for Signature
                       </div>
                     )}
                   </td>
