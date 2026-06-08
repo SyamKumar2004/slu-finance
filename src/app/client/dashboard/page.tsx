@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, LogOut, Wallet, Percent, Calendar, AlertCircle, CheckCircle2, Lock, FileText, Send, Eye, Edit3 } from 'lucide-react';
+import { ShieldCheck, LogOut, AlertCircle, CheckCircle2, Lock, FileText, Send, Eye, Edit3 } from 'lucide-react';
 
 export default function ClientDashboardPortal() {
   const supabase = createClient();
@@ -41,11 +41,12 @@ export default function ClientDashboardPortal() {
         const mapped = dynamicLoans.map((l: any) => {
           const p = Number(l.principal_amount || 0);
           const r = Number(l.interest_rate || 0);
+          const collected = Number(l.total_collected || 0);
           const totalDebt = p + (p * (r / 100));
           return {
             ...l,
             totalPayableDebt: totalDebt,
-            remainingBalance: totalDebt - Number(l.total_collected || 0)
+            remainingBalance: totalDebt - collected
           };
         });
         setLoans(mapped);
@@ -143,8 +144,12 @@ export default function ClientDashboardPortal() {
                             <span className="text-xs font-bold text-slate-400 uppercase block tracking-wider">Remaining Liability Balance</span>
                             <h3 className="text-3xl font-black text-white mt-0.5">₹{loan.remainingBalance.toLocaleString()}</h3>
                           </div>
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${loan.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'}`}>
-                            {loan.status === 'Verification_Pending' ? '⚠️ Awaiting Acceptance' : loan.status}
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            loan.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                            loan.status === 'Customer_Accepted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
+                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                            {loan.status === 'Verification_Pending' ? '⚠️ Awaiting Your Signature' : loan.status.replace('_', ' ')}
                           </span>
                         </div>
 
@@ -165,7 +170,23 @@ export default function ClientDashboardPortal() {
                       </div>
 
                       {loan.status === 'Verification_Pending' && (
-                        <button type="button" onClick={async () => { await supabase.from('live_loans').update({ status: 'Active' }).eq('id', loan.id); alert('Success: Signature Authenticated! Terms Accepted.'); verifyClientSession(); }} className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black p-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg"><CheckCircle2 className="h-4 w-4" /> Sign & Authorize Terms Agreement</button>
+                        <button 
+                          type="button" 
+                          onClick={async () => { 
+                            await supabase.from('live_loans').update({ status: 'Customer_Accepted' }).eq('id', loan.id); 
+                            alert('Success: Signature Authenticated! Terms Accepted. Awaiting final corporate funding release...'); 
+                            verifyClientSession(); 
+                          }} 
+                          className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black p-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg"
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> Sign & Authorize Terms Agreement
+                        </button>
+                      )}
+
+                      {loan.status === 'Customer_Accepted' && (
+                        <div className="w-full mt-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping" /> Signed & Awaiting Corporate Release
+                        </div>
                       )}
                     </div>
 
