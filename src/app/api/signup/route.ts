@@ -1,22 +1,28 @@
-import { Pool } from 'pg';
+import { NextResponse } from 'next/server';
+// Make sure you are IMPORTING executeQuery from your db file, NOT redefining and exporting it here!
+import { executeQuery } from '@/lib/db'; 
 
-// Initialize a master connection pool using your secure connection string
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Ensures secure and reliable connections to Supabase servers
-  }
-});
-
-export async function executeQuery(text: string, params?: any[]) {
-  const client = await pool.connect();
+export async function POST(request: Request) {
   try {
-    const res = await client.query(text, params);
-    return { data: res.rows, error: null };
+    const { name, email, phone, password } = await request.json();
+
+    const queryText = `
+      INSERT INTO public.user_profiles (id, full_name, email, phone_number, password_hash, role)
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, 'admin')
+      RETURNING *;
+    `;
+    
+    const { data, error } = await executeQuery(queryText, [name, email, phone, password]);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, user: data?.[0] });
   } catch (err: any) {
-    console.error("Database Execution Error:", err);
-    return { data: null, error: err };
-  } finally {
-    client.release(); // Instantly frees up the connection handle slot
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+// CRITICAL SAFETY FOR NEXT.JS BUILD ENGINE: 
+// Ensure there are NO OTHER line statements starting with "export function..." or "export const..." here!
