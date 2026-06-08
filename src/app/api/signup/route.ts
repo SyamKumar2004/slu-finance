@@ -1,18 +1,33 @@
 import { NextResponse } from 'next/server';
-// Make sure you are IMPORTING executeQuery from your db file, NOT redefining and exporting it here!
-import { executeQuery } from '@/lib/db'; 
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize the backend Supabase admin override client directly inside the route file
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 export async function POST(request: Request) {
   try {
-    const { name, email, phone, password } = await request.json();
+    const body = await request.json();
+    const { name, email, phone, password } = body;
 
-    const queryText = `
-      INSERT INTO public.user_profiles (id, full_name, email, phone_number, password_hash, role)
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, 'admin')
-      RETURNING *;
-    `;
-    
-    const { data, error } = await executeQuery(queryText, [name, email, phone, password]);
+    const fullPhone = `+91${phone.replace(/\D/g, '')}`;
+
+    // Insert directly into user_profiles table schema
+    const { data, error } = await supabaseAdmin
+      .from('user_profiles')
+      .insert([
+        {
+          id: crypto.randomUUID(),
+          full_name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone_number: fullPhone,
+          password_hash: password,
+          role: 'admin'
+        }
+      ])
+      .select();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -24,5 +39,5 @@ export async function POST(request: Request) {
   }
 }
 
-// CRITICAL SAFETY FOR NEXT.JS BUILD ENGINE: 
-// Ensure there are NO OTHER line statements starting with "export function..." or "export const..." here!
+// CRITICAL PRODUCTION BUILD CHECK: 
+// Do NOT add or export any other custom functions (like executeQuery) below this line!
