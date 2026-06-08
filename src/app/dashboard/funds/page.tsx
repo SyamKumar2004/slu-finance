@@ -1,53 +1,172 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { PlusCircle, Calendar } from 'lucide-react';
+import { Wallet, PlusCircle, ArrowUpRight, Smartphone } from 'lucide-react';
 
-export default function CapitalTab() {
+export default function CapitalPoolReserves() {
   const supabase = createClient();
-  const [history, setHistory] = useState<any[]>([]);
-  const [floatBalance, setFloatBalance] = useState(0);
-  const [amt, setAmt] = useState('');
-  const [notes, setNotes] = useState('');
+  const [injections, setInjections] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({ poolTotal: 0, deployed: 0, available: 0 });
+  const [injectAmount, setInjectAmount] = useState('');
+  const [sourceNote, setSourceNote] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
-  useEffect(() => { loadFundsMetrics(); }, []);
+  const loadIsolatedReserves = useCallback(async () => {
+    const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
 
-  async function loadFundsMetrics() {
-    const { data: rows } = await supabase.from('company_capital').select('*').order('created_at', { ascending: false });
-    if (rows) {
-      setHistory(rows);
-      const total = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
-      
-      const { data: activeLoans } = await supabase.from('live_loans').select('principal_amount, total_collected');
-      let lentOut = 0; let collected = 0;
-      activeLoans?.forEach(l => { lentOut += Number(l.principal_amount || 0); collected += Number(l.total_collected || 0); });
-      setFloatBalance(total + collected - lentOut);
-    }
-  }
+    // 1. Fetch ONLY capital pool injections matching this specific lender account identity
+    const { data: capitalLogs } = await supabase
+      .from('company_capital')
+      .select('*')
+      .eq('lender_id', activeLenderUuid)
+      .order('created_at', { ascending: false });
 
-  const handleAddCapital = async (e: React.FormEvent) => {
+    const totalInjected = capitalLogs?.reduce((acc, curr) => acc + Number(curr.amount || 0), 0) || 0;
+
+    // 2. Fetch active principal deployed by this specific lender
+    const { data: activeLoans } = await supabase
+      .from('live_loans')
+      .select('principal_amount, total_collected, status')
+      .eq('lender_id', activeLenderUuid);
+
+    let totalLentOut = 0;
+    let totalCollectedBack = 0;
+
+    (activeLoans || []).forEach((l: any) => {
+      if (l.status === 'Active' || l.status === 'Closed') {
+        totalLentOut += Number(l.principal_amount || 0);
+        totalCollectedBack += Number(l.total_collected || 0);
+      }
+    });
+
+    // Available Cash Float = Injected Capital + Interest Earnings Collected - Capital Deployed Out
+    const netAvailableFloat = totalInjected + totalCollectedBack - totalLentOut;
+
+    setMetrics({
+      poolTotal: totalInjected,
+      deployed: totalLentOut,
+      available: netAvailableFloat
+    });
+    setInjections(capitalLogs || []);
+    setLoading(false);
+  }, [supabase]);
+
+  useEffect(() => {
+    loadIsolatedReserves();
+  }, [loadIsolatedReserves]);
+
+  const handleInjectCapital = async (e: React.FormEvent) => {
     e.preventDefault();
-    const val = parseFloat(amt);
-    if (isNaN(val) || val <= 0) return;
-    await supabase.from('company_capital').insert([{ amount: val, notes: notes.trim() || 'Manual Capital Injection' }]);
-    setAmt(''); setNotes(''); loadFundsMetrics();
+    const amt = parseFloat(injectAmount);
+    if (amt <= 0 || !sourceNote.trim()) return;
+
+    setProcessing(true);
+    const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
+
+    const { error } = await supabase.from('company_capital').insert([{
+      lender_id: activeLenderUuid, // STAMPS OPERATING LENDER ID FOR COMPARTMENTALIZATION
+      amount: amt,
+      funding_source_notes: sourceNote.trim(),
+      created_at: new Date().toISOString()
+    }]);
+
+    if (!error) {
+      setInjectAmount('');
+      setSourceNote('');
+      alert("Capital Reserves Updated successfully!");
+      loadIsolatedReserves();
+    }
+    setProcessing(false);
   };
 
+  if (loading) return <div className="p-8 text-sm font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">Syncing Reserves Matrix...</div>;
+
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 h-fit shadow-lg">
-        <h3 className="text-md font-black text-white flex items-center gap-1.5 mb-4"><PlusCircle className="text-emerald-400 h-4 w-4" /> Inject Capital</h3>
-        <form onSubmit={handleAddCapital} className="space-y-4 text-xs">
-          <div><label className="font-bold text-slate-400 uppercase">Amount (₹)</label><input required type="number" value={amt} onChange={e => setAmt(e.target.value)} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-black text-md focus:outline-none" placeholder="e.g. 50000" /></div>
-          <div><label className="font-bold text-slate-400 uppercase">Audit Note</label><input type="text" value={notes} onChange={e => setNotes(e.target.value)} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none" placeholder="SBI cash ledger transfer..." /></div>
-          <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-3 rounded-xl uppercase transition-all">Confirm Influx</button>
-        </form>
-      </div>
-      <div className="md:col-span-2 space-y-4">
-        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-center shadow-lg"><span className="text-xs text-emerald-400 font-black uppercase tracking-wider block">Active Liquid Cash Float</span><span className="text-4xl font-black text-emerald-400 block mt-2">₹{floatBalance.toLocaleString()}</span></div>
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-md"><h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Audit Influx Logs History</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">{history.map(log => (<div key={log.id} className="flex justify-between items-center p-3 rounded-xl bg-slate-950 border border-slate-900 text-xs"><div><p className="font-bold text-slate-200">₹{Number(log.amount || 0).toLocaleString()}</p><p className="text-[10px] text-slate-500 mt-0.5">{log.notes}</p></div><span className="text-[10px] text-slate-500 font-bold bg-slate-900 px-2 py-1 rounded-md">{new Date(log.created_at).toLocaleDateString('en-IN')}</span></div>))}</div>
+    <div className="space-y-8 w-full max-w-6xl mx-auto px-2">
+      
+      {/* TYPOGRAPHY RESPONSIVE SCORES */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Net Available Float</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-emerald-400 mt-2">₹{metrics.available.toLocaleString()}</h2>
         </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Total Injected Capital</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-white mt-2">₹{metrics.poolTotal.toLocaleString()}</h2>
+        </div>
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Principal Deployed</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-blue-400 mt-2">₹{metrics.deployed.toLocaleString()}</h2>
+        </div>
+      </div>
+
+      {/* TWO COLUMN RESPONSIVE GRID WRAPPER */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        
+        {/* LEFT COLUMN: INJECTION CONTROL FORM */}
+        <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
+          <h3 className="text-lg font-black text-white tracking-wide flex items-center gap-2">
+            <PlusCircle className="text-emerald-400" /> Expand Pool Reserves
+          </h3>
+          <form onSubmit={handleInjectCapital} className="space-y-4 text-sm font-bold">
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-black">Injection Amount (INR)</label>
+              <input required type="number" value={injectAmount} onChange={e => setInjectAmount(e.target.value)} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold text-base focus:outline-none focus:border-slate-500" placeholder="₹ Amount" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-black">Source Reference / Allocation Notes</label>
+              <input required type="text" value={sourceNote} onChange={e => setSourceNote(e.target.value)} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold text-sm focus:outline-none focus:border-slate-500" placeholder="e.g. Personal capital infusion, Bank transfer ref..." />
+            </div>
+            <button type="submit" disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-3.5 rounded-xl uppercase text-xs tracking-wider transition-all shadow-lg">
+              {processing ? 'Processing...' : 'Authorize Float Injection'}
+            </button>
+          </form>
+        </div>
+
+        {/* RIGHT COLUMN: HISTORICAL LEDGER ENTRIES LIST */}
+        <div className="lg:col-span-2 bg-[#0b132b] border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-base font-black text-white tracking-wide">Allocation Registry History</h3>
+            <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1 sm:hidden">
+              <Smartphone className="h-3 w-3" /> Swipe to view rows
+            </span>
+          </div>
+
+          <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+            <table className="w-full text-left text-sm font-bold text-slate-300 min-w-[550px] table-auto">
+              <thead>
+                <tr className="border-b border-slate-800 text-xs uppercase text-slate-400 tracking-wider font-black">
+                  <th className="pb-3 pl-2">Date Authenticated</th>
+                  <th className="pb-3">Allocation Source Reference</th>
+                  <th className="pb-3 pr-2 text-right">Fund Value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/40">
+                {injections.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-8 text-center text-slate-500 font-medium">No capital injections logged on this account register handle yet.</td>
+                  </tr>
+                ) : (
+                  injections.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-950/20 transition-all">
+                      <td className="py-4 pl-2 font-mono text-xs text-slate-400">
+                        {new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="py-4 font-black text-white text-sm flex items-center gap-1.5">
+                        <ArrowUpRight className="h-4 w-4 text-emerald-400 shrink-0" /> {item.funding_source_notes}
+                      </td>
+                      <td className="py-4 pr-2 text-right font-black text-emerald-400 text-base">
+                        ₹{Number(item.amount).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   );
