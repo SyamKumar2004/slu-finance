@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     full_name TEXT,
     email TEXT,
     phone_number TEXT,
-    password_hash TEXT DEFAULT 'Syamkumar#21225',
+    password_hash TEXT DEFAULT 'Slu-fianace#123',
     role TEXT DEFAULT 'admin',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );

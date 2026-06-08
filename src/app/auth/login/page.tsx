@@ -77,7 +77,7 @@ export default function UserSignInPortal() {
                 value={form.identifier} 
                 onChange={e => setForm({...form, identifier: e.target.value})} 
                 className="w-full p-3 pl-11 rounded-xl bg-slate-950 border border-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-white text-sm" 
-                placeholder="syamkumarpotnuru7@gmail.com or +91..." 
+                placeholder="slu-finance@gmail.com or +91..." 
               />
               <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
             </div>
