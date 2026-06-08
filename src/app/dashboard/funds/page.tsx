@@ -63,20 +63,19 @@ export default function CapitalPoolReserves() {
 
     setProcessing(true);
     
-    // Read the true session active profile key
     const activeLenderUuid = localStorage.getItem('slu_user_id');
     
-    // SAFETY CHECK GATE: Alert user if they need to log back in
     if (!activeLenderUuid || activeLenderUuid === '00000000-0000-0000-0000-000000000000') {
       alert("Session Sync Required: Your session token is outdated. Please sign out and sign back in once to sync multi-tenant parameters.");
       setProcessing(false);
       return;
     }
 
+    // FIXED ROW INTERSECTION MAPPING TARGET: notes maps to notes column in DB
     const { error } = await supabase.from('company_capital').insert([{
       lender_id: activeLenderUuid,
       amount: amt,
-      funding_source_notes: sourceNote.trim(),
+      notes: sourceNote.trim(), 
       created_at: new Date().toISOString()
     }]);
 
@@ -97,7 +96,7 @@ export default function CapitalPoolReserves() {
   return (
     <div className="space-y-8 w-full max-w-6xl mx-auto px-2">
       
-      {/* TYPOGRAPHY RESPONSIVE SCORES */}
+      {/* SCALED METRICS PANELS (+2PX/+3PX TYPOGRAPHY TYPOGRAPHY OVERRIDE) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
           <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Net Available Float</span>
@@ -116,48 +115,48 @@ export default function CapitalPoolReserves() {
       {/* TWO COLUMN RESPONSIVE GRID WRAPPER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
-        {/* LEFT COLUMN: INJECTION CONTROL FORM */}
+        {/* LEFT COLUMN: CONTROL INPUT ONBOARDING PANEL */}
         <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
-          <h3 className="text-lg font-black text-white tracking-wide flex items-center gap-2">
-            <PlusCircle className="text-emerald-400" /> Expand Pool Reserves
+          <h3 className="text-xl font-black text-white tracking-wide flex items-center gap-2">
+            <PlusCircle className="text-emerald-400 h-5 w-5" /> Expand Pool Reserves
           </h3>
           <form onSubmit={handleInjectCapital} className="space-y-4 text-sm font-bold">
             <div>
-              <label className="text-xs text-slate-400 uppercase font-black">Injection Amount (INR)</label>
-              <input required type="number" value={injectAmount} onChange={e => setInjectAmount(e.target.value)} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold text-base focus:outline-none focus:border-slate-500" placeholder="₹ Amount" />
+              <label className="text-xs text-slate-400 uppercase font-black tracking-wider">Injection Amount (INR)</label>
+              <input required type="number" value={injectAmount} onChange={e => setInjectAmount(e.target.value)} className="w-full mt-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold text-base focus:outline-none focus:border-slate-500" placeholder="₹ Amount" />
             </div>
             <div>
-              <label className="text-xs text-slate-400 uppercase font-black">Source Reference / Allocation Notes</label>
-              <input required type="text" value={sourceNote} onChange={e => setSourceNote(e.target.value)} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold text-sm focus:outline-none focus:border-slate-500" placeholder="e.g. Personal capital infusion, Bank transfer ref..." />
+              <label className="text-xs text-slate-400 uppercase font-black tracking-wider">Source Reference / Allocation Notes</label>
+              <input required type="text" value={sourceNote} onChange={e => setSourceNote(e.target.value)} className="w-full mt-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold text-sm focus:outline-none focus:border-slate-500" placeholder="e.g. Personal savings injection..." />
             </div>
-            <button type="submit" disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-3.5 rounded-xl uppercase text-xs tracking-wider transition-all shadow-lg">
-              {processing ? 'Processing...' : 'Authorize Float Injection'}
+            <button type="submit" disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-4 rounded-xl uppercase text-xs tracking-wider transition-all shadow-lg mt-2">
+              {processing ? 'Processing Influx...' : 'Authorize Float Injection'}
             </button>
           </form>
         </div>
 
-        {/* RIGHT COLUMN: HISTORICAL LEDGER ENTRIES LIST */}
+        {/* RIGHT COLUMN: REGISTRY DATA GRAPH HISTORY LIST */}
         <div className="lg:col-span-2 bg-[#0b132b] border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-black text-white tracking-wide">Allocation Registry History</h3>
-            <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1 sm:hidden">
-              <Smartphone className="h-3 w-3" /> Swipe to view rows
+            <h3 className="text-base font-black text-white tracking-wide uppercase tracking-wider text-slate-300">Allocation Registry History</h3>
+            <span className="text-xs font-medium text-slate-500 flex items-center gap-1 sm:hidden">
+              <Smartphone className="h-4 w-4" /> Swipe to view rows
             </span>
           </div>
 
           <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
             <table className="w-full text-left text-sm font-bold text-slate-300 min-w-[550px] table-auto">
               <thead>
-                <tr className="border-b border-slate-800 text-xs uppercase text-slate-400 tracking-wider font-black">
-                  <th className="pb-3 pl-2">Date Authenticated</th>
-                  <th className="pb-3">Allocation Source Reference</th>
-                  <th className="pb-3 pr-2 text-right">Fund Value</th>
+                <tr className="border-b border-slate-800 text-xs uppercase text-slate-400 tracking-wider font-black pb-3">
+                  <th className="pb-4 pl-2">Date Authenticated</th>
+                  <th className="pb-4">Allocation Source Reference</th>
+                  <th className="pb-4 pr-2 text-right">Fund Value</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/40">
                 {injections.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-8 text-center text-slate-500 font-medium">No capital injections logged on this account register handle yet.</td>
+                    <td colSpan={3} className="py-8 text-center text-slate-500 font-bold text-sm">No capital injections logged on this account register handle yet.</td>
                   </tr>
                 ) : (
                   injections.map((item) => (
@@ -166,7 +165,7 @@ export default function CapitalPoolReserves() {
                         {new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="py-4 font-black text-white text-sm flex items-center gap-1.5">
-                        <ArrowUpRight className="h-4 w-4 text-emerald-400 shrink-0" /> {item.funding_source_notes}
+                        <ArrowUpRight className="h-4 w-4 text-emerald-400 shrink-0" /> {item.notes || 'Asset Injection Row'}
                       </td>
                       <td className="py-4 pr-2 text-right font-black text-emerald-400 text-base">
                         ₹{Number(item.amount).toLocaleString()}
