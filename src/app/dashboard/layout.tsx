@@ -1,92 +1,95 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
-import { 
-  LayoutDashboard, UserPlus, Wallet, BarChart3, AlertTriangle, Settings, LogOut, ShieldCheck
-} from 'lucide-react';
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { BookOpen, UserPlus, Wallet, BarChart3, AlertTriangle, Settings, Menu, X } from 'lucide-react';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
-  const [companyName, setCompanyName] = useState('SLU Finance');
-  const [adminName, setAdminName] = useState('Potnuru Syamkumar');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const activeLocalSession = localStorage.getItem('slu_session_active');
-    const locallySavedName = localStorage.getItem('slu_user_name');
-    if (activeLocalSession !== 'true') {
-      router.push('/auth/login');
-      return;
-    }
-    if (locallySavedName) setAdminName(locallySavedName);
-
-    // Pull custom branding live from settings
-    supabase.from('system_settings').select('company_name').limit(1).maybeSingle().then(({ data }) => {
-      if (data?.company_name) setCompanyName(data.company_name);
-    });
-  }, [pathname, router]);
-
-  const navItems = [
-    { path: '/dashboard', label: 'Book Records Desk', icon: LayoutDashboard },
-    { path: '/dashboard/onboarding', label: 'New Client Onboarding', icon: UserPlus },
-    { path: '/dashboard/funds', label: 'Capital Pool Reserves', icon: Wallet },
-    { path: '/dashboard/analytics', label: 'Yield Analytics', icon: BarChart3 },
-    { path: '/dashboard/risk', label: 'Risk Collection Radar', icon: AlertTriangle },
-    { path: '/dashboard/profile', label: 'Admin Settings', icon: Settings },
+  const navigationLinks = [
+    { name: 'Book Records Desk', path: '/dashboard', icon: BookOpen },
+    { name: 'New Client Onboarding', path: '/dashboard/onboarding', icon: UserPlus },
+    { name: 'Capital Pool Reserves', path: '/dashboard/funds', icon: Wallet },
+    { name: 'Yield Analytics', path: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'Risk Collection Radar', path: '/dashboard/risk', icon: AlertTriangle },
+    { name: 'Admin Settings', path: '/dashboard/profile', icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen flex bg-slate-950 text-slate-50 antialiased font-sans">
-      {/* SIDEBAR NAVIGATION SHELL */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-20">
-        <div className="p-5">
-          <div className="mb-8 px-2 flex items-center gap-2">
-            <div className="w-2.5 h-6 bg-emerald-500 rounded-full"></div>
-            <h1 className="text-xl font-black text-white uppercase tracking-tight truncate">{companyName}</h1>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+      
+      {/* MOBILE TOP BAR NAVIGATION HEADER */}
+      <header className="md:hidden w-full bg-slate-900 border-b border-slate-800 p-4 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          <span className="text-sm font-black tracking-wider text-white">SLU FINANCE</span>
+        </div>
+        <button 
+          type="button" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition-all"
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </header>
+
+      {/* RESPONSIBLE FIXED REVENUE SIDEBAR BAR FRAME */}
+      <aside className={`
+        fixed inset-y-0 left-0 w-64 bg-slate-900 border-r border-slate-800 p-6 flex flex-col justify-between z-40 transform transition-transform duration-300 ease-in-out
+        md:relative md:transform-none md:flex
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <div className="space-y-8">
+          <div className="hidden md:flex items-center gap-2.5 px-2">
+            <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50" />
+            <span className="text-md font-black tracking-widest text-white">SLU FINANCE</span>
           </div>
+
           <nav className="space-y-1.5">
-            {navItems.map((item) => {
-              const isActive = pathname === item.path;
+            {navigationLinks.map((link) => {
+              const IconComponent = link.icon;
+              const isRouteActive = pathname === link.path;
               return (
-                <button
-                  key={item.path}
-                  onClick={() => router.push(item.path)}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-bold transition-all ${
-                    isActive ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                <Link
+                  key={link.path}
+                  href={link.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold tracking-wide transition-all ${
+                    isRouteActive 
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/10 border border-emerald-500/20' 
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-950/40'
                   }`}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                </button>
+                  <IconComponent className={`h-4 w-4 ${isRouteActive ? 'text-white' : 'text-slate-500'}`} />
+                  {link.name}
+                </Link>
               );
             })}
           </nav>
         </div>
-        <div className="p-4 border-t border-slate-800">
-          <button 
-            onClick={() => { localStorage.clear(); router.push('/auth/login'); }} 
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-950 text-slate-400 border border-slate-800 hover:bg-rose-950/40 hover:text-rose-400 text-xs font-bold uppercase transition-all"
-          >
-            <LogOut className="h-4 w-4" /> Exit Session
-          </button>
+
+        <div className="pt-4 border-t border-slate-800/60 text-center">
+          <Link href="/" className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-all block py-2 bg-rose-950/10 border border-rose-900/20 rounded-xl">
+            Exit Session
+          </Link>
         </div>
       </aside>
 
-      {/* DASHBOARD CONTENT SPACE */}
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        <header className="mb-8 flex justify-between items-center bg-slate-900/40 border border-slate-800/60 p-4 rounded-2xl backdrop-blur-md">
-          <div>
-            <h2 className="text-lg font-bold text-white">Welcome Back, {adminName} 👋</h2>
-            <p className="text-xs text-slate-500 font-medium">Platform Role: Master Administrator</p>
-          </div>
-          <span className="text-[10px] font-black text-emerald-400 uppercase bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
-            <ShieldCheck className="h-3.5 w-3.5" /> Live Operational Mode
-          </span>
-        </header>
+      {/* MOBILE NAV MENU BACKGROUND OVERLAY PANEL */}
+      {isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" 
+        />
+      )}
+
+      {/* CORE PORTAL MAIN SURFACE LAYER */}
+      <main className="flex-1 w-full overflow-x-hidden p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         {children}
       </main>
+
     </div>
   );
 }

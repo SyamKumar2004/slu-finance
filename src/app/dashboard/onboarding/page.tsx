@@ -82,12 +82,18 @@ export default function OnboardingTab() {
   const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
+    // Retrieve the unique ID of the currently logged-in Admin/Lender from session memory
+    const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
+    
     const P = parseFloat(formData.principalAmount);
     const R = parseFloat(formData.interestRate);
     const fullPhone = `+91${formData.clientPhone.replace(/\D/g, '')}`;
     const defaultPass = 'SLU-Client-123!';
 
+    // 1. Insert into live_loans stamped with the active lender's unique tracking key
     const { error: loanError } = await supabase.from('live_loans').insert([{
+      lender_id: activeLenderUuid, // STAMPS OPERATING LENDER ID FOR COMPARTMENTALIZATION
       client_name: formData.clientName.trim(),
       client_email: formData.clientEmail.trim().toLowerCase(),
       client_phone: fullPhone,
@@ -113,6 +119,7 @@ export default function OnboardingTab() {
       return; 
     }
 
+    // 2. Provision the isolated client credentials profile row
     await supabase.from('user_profiles').insert([{
       id: crypto.randomUUID(),
       full_name: formData.clientName.trim(),
