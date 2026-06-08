@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, LogOut, AlertCircle, CheckCircle2, Lock, FileText, Eye, User, Mail, MapPin, Landmark, Smartphone } from 'lucide-react';
+import { ShieldCheck, LogOut, AlertCircle, CheckCircle2, Lock, FileText, User, Mail, MapPin, Landmark, Smartphone } from 'lucide-react';
 
 export default function ClientDashboardPortal() {
   const supabase = createClient();
@@ -113,9 +113,10 @@ export default function ClientDashboardPortal() {
           </h1>
           <p className="text-xs text-slate-500 font-black tracking-widest uppercase mt-0.5">Client Verification Desk</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          <button type="button" onClick={() => setActiveTab('dossier')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${activeTab === 'dossier' ? 'bg-slate-800 text-white border-slate-700' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}>My Credit Dossier</button>
-          <button type="button" onClick={() => setActiveTab('security')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${activeTab === 'security' ? 'bg-slate-800 text-white border-slate-700' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}>Security Settings</button>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto text-sm">
+          <button type="button" onClick={() => setActiveTab('dossier')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-black uppercase tracking-wider border transition-all ${activeTab === 'dossier' ? 'bg-slate-800 text-white border-slate-700' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}>My Credit Dossier</button>
+          <button type="button" onClick={() => window.location.reload()} className="md:hidden p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400"><Smartphone className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setActiveTab('security')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-black uppercase tracking-wider border transition-all ${activeTab === 'security' ? 'bg-slate-800 text-white border-slate-700' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}>Security Settings</button>
           <button type="button" onClick={() => { localStorage.clear(); router.push('/auth/login'); }} className="p-2.5 rounded-xl bg-rose-950/20 text-rose-400 border border-rose-900/20 hover:bg-rose-950/60 transition-all"><LogOut className="h-4 w-4" /></button>
         </div>
       </header>
@@ -125,8 +126,8 @@ export default function ClientDashboardPortal() {
         
         {/* WELCOME CLIENT GREETING BANNER CONTAINER */}
         <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-xl sm:text-2xl font-black text-white">Welcome, {clientProfile.name} 👋</h2>
-          <p className="text-xs sm:text-sm text-slate-400 font-bold mt-1.5">Access and verify your certified active lines, payment timelines, and underwritten file copies.</p>
+          <h2 className="text-2xl font-black text-white">Welcome, {clientProfile.name} 👋</h2>
+          <p className="text-sm sm:text-base text-slate-400 font-bold mt-1.5">Access and verify your certified active lines, payment timelines, and underwritten file copies.</p>
         </div>
 
         {activeTab === 'dossier' && (
@@ -135,7 +136,7 @@ export default function ClientDashboardPortal() {
             {/* LEFT COLUMN: ACTIVE ACCOUNT CREDITS */}
             <div className="lg:col-span-2 space-y-6">
               {loans.length === 0 ? (
-                <div className="bg-[#0b132b] border border-slate-800 rounded-2xl p-8 text-center text-slate-400 font-bold flex flex-col items-center gap-2">
+                <div className="bg-[#0b132b] border border-slate-800 rounded-2xl p-8 text-center text-slate-400 font-bold flex flex-col items-center gap-2 text-base">
                   <AlertCircle className="text-amber-500 h-6 w-6" /> No active credit statements associated with this user handle.
                 </div>
               ) : (
@@ -143,25 +144,25 @@ export default function ClientDashboardPortal() {
                   <div key={loan.id} className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-6">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800/60 pb-4 gap-4">
                       <div>
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">Account Remaining Balance</span>
-                        <h3 className="text-2xl sm:text-3xl font-black text-white mt-1">₹{loan.remainingBalance.toLocaleString()}</h3>
+                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Account Remaining Balance</span>
+                        <h3 className="text-3xl sm:text-4xl font-black text-white mt-1">₹{loan.remainingBalance.toLocaleString()}</h3>
                       </div>
                       <div>
-                        <span className="text-[10px] font-black text-slate-500 uppercase block tracking-wider">Creditor Account Partner</span>
-                        <span className="text-sm sm:text-base font-black text-emerald-400 flex items-center gap-1.5 mt-1"><Landmark className="h-4 w-4 shrink-0" /> {loan.originLenderName}</span>
+                        <span className="text-xs font-black text-slate-500 uppercase block tracking-wider">Creditor Account Partner</span>
+                        <span className="text-base sm:text-lg font-black text-emerald-400 flex items-center gap-1.5 mt-1"><Landmark className="h-5 w-5 shrink-0" /> {loan.originLenderName}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-black text-slate-400">
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-[10px] text-slate-500 block uppercase tracking-wide">Principal Financed</span><span className="text-slate-100 text-sm sm:text-base block mt-1">₹{Number(loan.principal_amount).toLocaleString()}</span></div>
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-[10px] text-slate-500 block uppercase tracking-wide">Interest Rate</span><span className="text-slate-100 text-sm block mt-1">{loan.interest_rate}%</span></div>
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-[10px] text-slate-500 block uppercase tracking-wide">Gross Contract Debt</span><span className="text-white text-sm sm:text-base block mt-1">₹{loan.totalPayableDebt.toLocaleString()}</span></div>
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-[10px] text-emerald-500 block uppercase tracking-wide">Repayment Installment</span><span className="text-emerald-400 text-sm sm:text-base block mt-1">₹{loan.installment_amount} / {loan.tenure_type}</span></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-black text-slate-400">
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Principal Financed</span><span className="text-slate-100 text-base sm:text-lg block mt-1">₹{Number(loan.principal_amount).toLocaleString()}</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Interest Rate</span><span className="text-slate-100 text-base block mt-1">{loan.interest_rate}%</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Gross Contract Debt</span><span className="text-white text-base sm:text-lg block mt-1">₹{loan.totalPayableDebt.toLocaleString()}</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-emerald-500 block uppercase tracking-wide">Repayment Installment</span><span className="text-emerald-400 text-base sm:text-lg block mt-1">₹{loan.installment_amount} / {loan.tenure_type}</span></div>
                     </div>
 
-                    <div className="flex justify-between items-center bg-slate-950/30 p-4 rounded-xl border border-slate-800 text-xs font-bold text-slate-400">
-                      <span className="uppercase tracking-wider text-[10px] text-slate-500">Status Matrix:</span>
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider ${
+                    <div className="flex justify-between items-center bg-slate-950/30 p-4 rounded-xl border border-slate-800 text-sm font-bold text-slate-400">
+                      <span className="uppercase tracking-wider text-xs text-slate-500">Status Matrix:</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-black uppercase border tracking-wider ${
                         loan.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
                         loan.status === 'Closed' ? 'bg-slate-800 text-slate-400 border-slate-700' :
                         'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse'
@@ -178,7 +179,7 @@ export default function ClientDashboardPortal() {
                           alert('Terms Authorized! Awaiting corporate capital disbursement.'); 
                           verifyClientSession(); 
                         }} 
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-4 rounded-xl text-sm uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 className="h-4 w-4" /> Sign & Authorize Contract Sheet
                       </button>
@@ -191,15 +192,15 @@ export default function ClientDashboardPortal() {
             {/* RIGHT COLUMN: READ-ONLY CLIENT ACCOUNTS DOSSIER */}
             <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-5">
               <div className="border-b border-slate-800 pb-3">
-                <h3 className="text-sm sm:text-base font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5"><User className="text-emerald-400 h-4 w-4" /> Certified Profile Dossier</h3>
-                <p className="text-[11px] text-slate-500 mt-1">Underwritten fields are locked into read-only system status for ledger security constraints.</p>
+                <h3 className="text-base font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5"><User className="text-emerald-400 h-5 w-5" /> Certified Profile Dossier</h3>
+                <p className="text-xs text-slate-500 mt-1">Underwritten fields are locked into read-only system status for ledger security constraints.</p>
               </div>
 
-              <div className="space-y-4 text-xs font-bold text-slate-400">
-                <div className="space-y-1.5"><span className="text-[10px] text-slate-500 uppercase block tracking-wide">Registered Full Name</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-white font-black text-sm">{clientProfile.name}</div></div>
-                <div className="space-y-1.5"><span className="text-[10px] text-slate-500 uppercase block tracking-wide flex items-center gap-1"><Mail className="h-3 w-3" /> User Email Endpoint</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-white text-sm truncate font-medium">{clientProfile.email}</div></div>
-                <div className="space-y-1.5"><span className="text-[10px] text-slate-500 uppercase block tracking-wide flex items-center gap-1"><MapPin className="h-3 w-3" /> Home Residential Location</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-white text-sm font-medium">{clientProfile.address}</div></div>
-                <div className="space-y-1.5"><span className="text-[10px] text-slate-500 uppercase block tracking-wide flex items-center gap-1"><FileText className="h-3 w-3" /> Identity Records Reference</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-slate-400 text-xs font-mono select-none">{clientProfile.govId}</div></div>
+              <div className="space-y-4 text-sm font-bold text-slate-400">
+                <div className="space-y-1.5"><span className="text-xs text-slate-500 uppercase block tracking-wide">Registered Full Name</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-white font-black text-base">{clientProfile.name}</div></div>
+                <div className="space-y-1.5"><span className="text-xs text-slate-500 uppercase block tracking-wide flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> User Email Endpoint</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-white text-sm truncate font-medium">{clientProfile.email}</div></div>
+                <div className="space-y-1.5"><span className="text-xs text-slate-500 uppercase block tracking-wide flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Home Residential Location</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-white text-sm font-medium">{clientProfile.address}</div></div>
+                <div className="space-y-1.5"><span className="text-xs text-slate-500 uppercase block tracking-wide flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Identity Records Reference</span><div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-slate-400 text-xs font-mono select-none">{clientProfile.govId}</div></div>
               </div>
             </div>
 
@@ -210,14 +211,14 @@ export default function ClientDashboardPortal() {
         {activeTab === 'security' && (
           <div className="max-w-md mx-auto bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
             <div className="pb-3 border-b border-slate-800/60">
-              <h3 className="text-sm font-black text-white flex items-center gap-2"><Lock className="text-emerald-400 h-4 w-4" /> Modify System Passkey</h3>
+              <h3 className="text-base font-black text-white flex items-center gap-2"><Lock className="text-emerald-400 h-5 w-5" /> Modify System Passkey</h3>
               <p className="text-xs text-slate-500 mt-0.5">Update your customer credential keys live inside protected database records.</p>
             </div>
             
-            <form onSubmit={handleModifyPasswordLive} className="space-y-4 text-xs font-bold">
-              <div><label className="text-slate-400 uppercase tracking-wide">New Access Passkey</label><input required type="password" value={securityForm.newPass} onChange={e => setSecurityForm({ ...securityForm, newPass: e.target.value })} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none font-mono tracking-widest text-sm" placeholder="••••••••" /></div>
-              <div><label className="text-slate-400 uppercase tracking-wide">Confirm Password String</label><input required type="password" value={securityForm.confirmPass} onChange={e => setSecurityForm({ ...securityForm, confirmPass: e.target.value })} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none font-mono tracking-widest text-sm" placeholder="••••••••" /></div>
-              <button type="submit" disabled={processingAction} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-3.5 rounded-xl uppercase tracking-wider transition-all shadow-lg text-xs">
+            <form onSubmit={handleModifyPasswordLive} className="space-y-4 text-sm font-bold">
+              <div><label className="text-slate-400 uppercase tracking-wide">New Access Passkey</label><input required type="password" value={securityForm.newPass} onChange={e => setSecurityForm({ ...securityForm, newPass: e.target.value })} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none font-mono tracking-widest text-base" placeholder="••••••••" /></div>
+              <div><label className="text-slate-400 uppercase tracking-wide">Confirm Password String</label><input required type="password" value={securityForm.confirmPass} onChange={e => setSecurityForm({ ...securityForm, confirmPass: e.target.value })} className="w-full mt-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none font-mono tracking-widest text-base" placeholder="••••••••" /></div>
+              <button type="submit" disabled={processingAction} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black p-4 rounded-xl uppercase tracking-wider transition-all shadow-lg text-xs sm:text-sm">
                 {processingAction ? 'Syncing...' : 'Commit Passkey Assignment Update'}
               </button>
             </form>
