@@ -6,27 +6,24 @@ import { CheckCircle2, Clock, Check, Archive, Smartphone } from 'lucide-react';
 export default function BookRecordsDesk() {
   const supabase = createClient();
   const [loans, setLoans] = useState<any[]>([]);
-  const [capitalMetrics, setCapitalMetrics] = useState({ float: 50000, lent: 0, collected: 0 });
+  const [capitalMetrics, setCapitalMetrics] = useState({ float: 0, lent: 0, collected: 0 });
   const [reconcileAmounts, setReconcileAmounts] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(true);
 
   const loadDashboardLedger = useCallback(async () => {
-    // Read the active operating lender's ID directly from local session storage
     const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
 
-    // 1. Fetch ONLY capital pool injections matching this specific lender account identity
     const { data: capitalData } = await supabase
       .from('company_capital')
       .select('amount')
-      .eq('lender_id', activeLenderUuid); // DATA SEPARATION FILTER
+      .eq('lender_id', activeLenderUuid);
       
     const totalInjected = capitalData?.reduce((acc, curr) => acc + Number(curr.amount || 0), 0) || 0;
 
-    // 2. Fetch ONLY loans that were underwritten by this specific logged-in lender
     const { data: rawLoans } = await supabase
       .from('live_loans')
       .select('*')
-      .eq('lender_id', activeLenderUuid) // DATA SEPARATION FILTER
+      .eq('lender_id', activeLenderUuid)
       .order('created_at', { ascending: false });
 
     let totalLent = 0;
@@ -91,7 +88,6 @@ export default function BookRecordsDesk() {
 
     if (!error) {
       setReconcileAmounts({ ...reconcileAmounts, [id]: '' });
-      alert("Collection logged successfully!");
       loadDashboardLedger();
     }
   };
@@ -99,57 +95,58 @@ export default function BookRecordsDesk() {
   if (loading) return <div className="p-8 text-xs font-mono text-emerald-400 animate-pulse uppercase tracking-widest text-center mt-20">Synchronizing Ledger Matrix...</div>;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       
-      {/* RESPONSIBLE STAT CARDS MATRIX GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+      {/* PROFESSIONAL METRICS METRIC PANEL GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Active Cash Float</span>
-          <h2 className="text-xl sm:text-2xl font-black text-emerald-400 mt-1">₹{capitalMetrics.float.toLocaleString()}</h2>
+          <h2 className="text-3xl font-black text-emerald-400 mt-1">₹{capitalMetrics.float.toLocaleString()}</h2>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Capital Lent Out</span>
-          <h2 className="text-xl sm:text-2xl font-black text-white mt-1">₹{capitalMetrics.lent.toLocaleString()}</h2>
+          <h2 className="text-3xl font-black text-white mt-1">₹{capitalMetrics.lent.toLocaleString()}</h2>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div className="bg-[#0b132b] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Yield Collected</span>
-          <h2 className="text-xl sm:text-2xl font-black text-blue-400 mt-1">₹{capitalMetrics.collected.toLocaleString()}</h2>
+          <h2 className="text-3xl font-black text-blue-400 mt-1">₹{capitalMetrics.collected.toLocaleString()}</h2>
         </div>
       </div>
 
-      {/* CORE DATA SHEET HOOK */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-black text-white">Underwritten Ledger Profiles</h3>
-          <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1 md:hidden">
-            <Smartphone className="h-3 w-3" /> Swipe Table to Scroll
+      {/* HARDENED DATA GRID VIEW */}
+      <div className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-black text-white tracking-wide">Underwritten Ledger Profiles</h3>
+          <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1 sm:hidden">
+            <Smartphone className="h-3 w-3" /> Swipe left/right to scroll data rows
           </span>
         </div>
 
-        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-          <table className="w-full text-left text-xs font-semibold text-slate-400 min-w-[760px]">
+        {/* TOUCH SCROLLING SAFE CONTENT WRAPPER */}
+        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs font-semibold text-slate-400 min-w-[850px] table-auto">
             <thead>
-              <tr className="border-b border-slate-800/80 text-[10px] uppercase text-slate-500 tracking-wider">
-                <th className="pb-3">Client Details</th>
+              <tr className="border-b border-slate-800 text-[10px] uppercase text-slate-500 tracking-wider">
+                <th className="pb-3 pl-2">Client Details</th>
                 <th className="pb-3">Structure</th>
                 <th className="pb-3">Timeline Status</th>
                 <th className="pb-3">Principal</th>
                 <th className="pb-3">Total Debt</th>
                 <th className="pb-3">Collected</th>
                 <th className="pb-3">Quick Reconcile</th>
-                <th className="pb-3 text-center">Actions</th>
+                <th className="pb-3 text-center pr-2">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-slate-800/40">
               {loans.map((loan) => (
-                <tr key={loan.id} className={`transition-all ${loan.status === 'Closed' ? 'bg-slate-950/40 opacity-60' : 'hover:bg-slate-950/20'}`}>
-                  <td className="py-4">
-                    <span className={`text-white font-black block truncate max-w-[140px] ${loan.status === 'Closed' ? 'line-through text-slate-500' : ''}`}>{loan.client_name}</span>
+                <tr key={loan.id} className={`transition-all ${loan.status === 'Closed' ? 'bg-slate-950/30 opacity-50' : 'hover:bg-slate-950/20'}`}>
+                  <td className="py-4 pl-2">
+                    <span className={`text-white font-black text-sm block ${loan.status === 'Closed' ? 'line-through text-slate-500' : ''}`}>{loan.client_name}</span>
                     <span className="text-[10px] font-mono text-slate-500 block mt-0.5">{loan.client_phone}</span>
                   </td>
                   <td className="py-4"><span className="px-2 py-0.5 bg-slate-950 rounded-md font-mono text-[10px] text-slate-400 border border-slate-800">{loan.tenure_type}</span></td>
                   <td className="py-4">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold block w-max uppercase border ${
+                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wide block w-max uppercase border ${
                       loan.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
                       loan.status === 'Closed' ? 'bg-slate-800 text-slate-400 border-slate-700' :
                       loan.status === 'Customer_Accepted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' :
@@ -159,7 +156,7 @@ export default function BookRecordsDesk() {
                     </span>
                   </td>
                   <td className="py-4 font-bold text-slate-300">₹{Number(loan.principal_amount).toLocaleString()}</td>
-                  <td className="py-4 font-black text-white">₹{loan.totalDebt.toLocaleString()}</td>
+                  <td className="py-4 font-black text-white text-sm">₹{loan.totalDebt.toLocaleString()}</td>
                   <td className="py-4 font-bold text-emerald-400">₹{Number(loan.total_collected || 0).toLocaleString()}</td>
                   
                   <td className="py-4">
@@ -169,22 +166,22 @@ export default function BookRecordsDesk() {
                         <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected)} className="p-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all font-bold"><Check className="h-3 w-3" /></button>
                       </div>
                     ) : loan.status === 'Closed' ? (
-                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-lg border border-emerald-500/10 flex items-center gap-1 w-max">🎉 Cleared</span>
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/5 px-2.5 py-0.5 rounded-lg border border-emerald-500/10 flex items-center gap-1 w-max">🎉 Cleared</span>
                     ) : (
                       <span className="text-[10px] text-slate-600 italic font-medium">Awaiting Activation</span>
                     )}
                   </td>
 
-                  <td className="py-4 text-center">
+                  <td className="py-4 text-center pr-2">
                     {loan.status === 'Active' ? (
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">🚀 Active Account</span>
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">🚀 Active</span>
                     ) : loan.status === 'Closed' ? (
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-center gap-1"><Archive className="h-3 w-3" /> Historical Log</span>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-center gap-1"><Archive className="h-3 w-3" /> Archive Log</span>
                     ) : loan.status === 'Customer_Accepted' ? (
                       <button type="button" onClick={() => handleFinalAdminApproval(loan.id)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider transition-all shadow-md flex items-center gap-1 mx-auto"><CheckCircle2 className="h-3.5 w-3.5" /> Approve Verification</button>
                     ) : (
                       <div className="text-amber-500 font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 py-1.5 bg-amber-500/5 rounded-xl border border-amber-500/10 max-w-[180px] mx-auto select-none">
-                        <Clock className="h-3.5 w-3.5 text-amber-500" /> Waiting for Signature
+                        <Clock className="h-3.5 w-3.5 text-amber-500" /> Awaiting Sign
                       </div>
                     )}
                   </td>
