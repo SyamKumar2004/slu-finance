@@ -16,6 +16,7 @@ export default function BookRecordsDesk() {
     const savedName = localStorage.getItem('slu_user_name');
     if (savedName) setAdminName(savedName);
 
+    // 1. Fetch capital pool injections matching this specific lender account identity
     const { data: capitalData } = await supabase
       .from('company_capital')
       .select('amount')
@@ -23,6 +24,7 @@ export default function BookRecordsDesk() {
       
     const totalInjected = capitalData?.reduce((acc, curr) => acc + Number(curr.amount || 0), 0) || 0;
 
+    // 2. Fetch loans underwritten by this specific logged-in lender
     const { data: rawLoans } = await supabase
       .from('live_loans')
       .select('*')
@@ -37,26 +39,20 @@ export default function BookRecordsDesk() {
       const rate = Number(l.interest_rate || 0);
       const collected = Number(l.total_collected || 0);
       const totalDebt = principal + (principal * (rate / 100));
-      
-      let currentStatus = l.status;
-      if (collected >= totalDebt && totalDebt > 0 && l.status !== 'Closed') {
-        currentStatus = 'Closed';
-        supabase.from('live_loans').update({ status: 'Closed', loan_cleared_date: new Date().toISOString() }).eq('id', l.id).then();
-      }
 
-      if (currentStatus === 'Active' || currentStatus === 'Closed') {
+      if (l.status === 'Active' || l.status === 'Closed') {
         totalLent += principal;
         totalCollected += collected;
       }
 
       return {
         ...l,
-        status: currentStatus,
         totalDebt: totalDebt,
         remainingBalance: Math.max(0, totalDebt - collected)
       };
     });
 
+    // Sort Loans: Active/Pending items first, Closed records at the very end
     const sortedLoans = processedLoans.sort((a, b) => {
       if (a.status === 'Closed' && b.status !== 'Closed') return 1;
       if (a.status !== 'Closed' && b.status === 'Closed') return -1;
@@ -75,22 +71,37 @@ export default function BookRecordsDesk() {
   }, [loadDashboardLedger]);
 
   const handleFinalAdminApproval = async (id: string) => {
-    const { error = null } = await supabase.from('live_loans').update({ status: 'Active' }).eq('id', id);
+    const { error } = await supabase.from('live_loans').update({ status: 'Active' }).eq('id', id);
     if (!error) {
       alert("Verification Approved: Capital has been officially deployed to the active asset register.");
       loadDashboardLedger();
     }
   };
 
-  const handleCollectionReconcile = async (id: string, currentCollected: number) => {
+  const handleCollectionReconcile = async (id: string, currentCollected: number, totalDebt: number) => {
     const typedAmt = parseFloat(reconcileAmounts[id] || '0');
     if (typedAmt <= 0) return;
 
     const newTotal = currentCollected + typedAmt;
-    const { error = null } = await supabase.from('live_loans').update({ total_collected: newTotal }).eq('id', id);
+    
+    // Clean, automated state evaluation logic: Auto-close table line if fully paid back
+    const targetStatus = newTotal >= totalDebt ? 'Closed' : 'Active';
+    const updatePayload: any = { total_collected: newTotal, status: targetStatus };
+    
+    if (targetStatus === 'Closed') {
+      updatePayload.loan_cleared_date = new Date().toISOString();
+    }
+
+    const { error } = await supabase
+      .from('live_loans')
+      .update(updatePayload)
+      .eq('id', id);
 
     if (!error) {
       setReconcileAmounts({ ...reconcileAmounts, [id]: '' });
+      if (targetStatus === 'Closed') {
+        alert("Success: Account settled in full! Profile moved to Closed logs.");
+      }
       loadDashboardLedger();
     }
   };
@@ -153,7 +164,7 @@ export default function BookRecordsDesk() {
                 <th className="pb-4 text-center pr-2">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-slate-800/40">
               {loans.map((loan) => (
                 <tr key={loan.id} className={`transition-all ${loan.status === 'Closed' ? 'bg-slate-950/30 opacity-50' : 'hover:bg-slate-950/20'}`}>
                   <td className="py-5 pl-2">
@@ -181,7 +192,7 @@ export default function BookRecordsDesk() {
                     {loan.status === 'Active' ? (
                       <div className="flex items-center gap-2">
                         <input type="number" placeholder="₹" value={reconcileAmounts[loan.id] || ''} onChange={e => setReconcileAmounts({ ...reconcileAmounts, [loan.id]: e.target.value })} className="w-20 p-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none font-bold" />
-                        <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected)} className="p-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all"><Check className="h-4 w-4 stroke-[3]" /></button>
+                        <button type="button" onClick={() => handleCollectionReconcile(loan.id, loan.total_collected, loan.totalDebt)} className="p-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 transition-all"><Check className="h-4 w-4 stroke-[3]" /></button>
                       </div>
                     ) : loan.status === 'Closed' ? (
                       <span className="text-xs font-black text-emerald-400 bg-emerald-500/5 px-3 py-1 rounded-lg border border-emerald-500/10 flex items-center gap-1 w-max">🎉 Cleared</span>
