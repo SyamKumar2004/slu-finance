@@ -3,6 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BarChart3, TrendingUp, DollarSign, Wallet } from 'lucide-react';
 
+// Explicit structural typing matrix to guarantee zero Vercel build compilation exceptions
+interface LoanRowSchema {
+  id: string;
+  principal_amount: number;
+  total_collected: number;
+  interest_rate: number;
+  status: string;
+}
+
 export default function AnalyticsTab() {
   const supabase = createClient();
   const [data, setData] = useState({ lent: 0, collected: 0, profit: 0 });
@@ -12,31 +21,32 @@ export default function AnalyticsTab() {
     async function loadData() {
       const { data: activeLoans } = await supabase
         .from('live_loans')
-        .select('principal_amount, total_collected, interest_rate, status');
+        .select('id, principal_amount, total_collected, interest_rate, status');
       
       let tLent = 0; 
       let tCollected = 0; 
       let tProfit = 0;
 
-      activeLoans?.forEach(l => {
-        if (l.status !== 'Deleted' && l.status !== 'Verification_Pending') {
-          const principal = Number(l.principal_amount || 0);
-          const rate = Number(l.interest_rate || 0);
-          const totalCollectedAmt = Number(l.total_collected || 0);
-          const totalPayableDebt = principal + (principal * (rate / 100));
+      if (activeLoans) {
+        (activeLoans as unknown as LoanRowSchema[]).forEach((l) => {
+          if (l.status !== 'Deleted' && l.status !== 'Verification_Pending') {
+            const principal = Number(l.principal_amount || 0);
+            const rate = Number(l.interest_rate || 0);
+            const totalCollectedAmt = Number(l.total_collected || 0);
+            const totalPayableDebt = principal + (principal * (rate / 100));
 
-          tLent += principal;
-          tCollected += totalCollectedAmt;
+            tLent += principal;
+            tCollected += totalCollectedAmt;
 
-          // Compute exact realized interest profit margins proportional to collection velocity
-          if (totalCollectedAmt > principal) {
-            tProfit += (totalCollectedAmt - principal);
-          } else if (totalCollectedAmt > 0 && totalPayableDebt > 0) {
-            const interestRatio = (principal * (rate / 100)) / totalPayableDebt;
-            tProfit += (totalCollectedAmt * interestRatio);
+            if (totalCollectedAmt > principal) {
+              tProfit += (totalCollectedAmt - principal);
+            } else if (totalCollectedAmt > 0 && totalPayableDebt > 0) {
+              const interestRatio = (principal * (rate / 100)) / totalPayableDebt;
+              tProfit += (totalCollectedAmt * interestRatio);
+            }
           }
-        }
-      });
+        });
+      }
       
       setData({ lent: tLent, collected: tCollected, profit: Math.ceil(tProfit) });
       setLoading(false);
@@ -44,11 +54,10 @@ export default function AnalyticsTab() {
     loadData();
   }, []);
 
-  // MASTER AUTOSCALING PROPORTIONAL CALCULATOR ENGINE
   const maxMetricValue = Math.max(data.lent, data.collected, data.profit, 1000);
   
   const getProportionalHeight = (val: number) => {
-    if (val === 0) return '6px'; // Ensures a small base indicator capsule line is always visible
+    if (val === 0) return '6px';
     const calculatedPercentage = (val / maxMetricValue) * 100;
     return `${Math.min(Math.max(calculatedPercentage, 4), 100)}%`;
   };
@@ -63,8 +72,6 @@ export default function AnalyticsTab() {
 
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
-      
-      {/* SECTION HEADER TRACK */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
@@ -77,17 +84,13 @@ export default function AnalyticsTab() {
         </div>
       </div>
 
-      {/* GRAPH HOUSING COMPOSITOR PLATFORM */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* CHART BLOCK 1: UNDERWRITTEN VOLUME ANALYSIS */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col justify-between h-[420px]">
           <div>
             <h3 className="text-md font-black text-white">Underwritten Volume Analysis</h3>
             <p className="text-xs text-slate-500 mt-0.5">Lent out credit balances balanced against incoming client repayments.</p>
           </div>
           
-          {/* Y-Axis Indicator Background Grid (Matching Reference image_059606.png Styles) */}
           <div className="relative flex items-end gap-12 h-64 border-b border-l border-slate-800/80 px-8 pb-3 bg-slate-950/40 rounded-xl pt-6 mt-4">
             <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none flex flex-col justify-between text-[9px] font-mono font-black text-slate-700 select-none pr-2">
               <div className="w-full border-t border-slate-900/60 text-right pr-1">100%</div>
@@ -97,9 +100,8 @@ export default function AnalyticsTab() {
               <div className="w-full text-right pr-1">0%</div>
             </div>
 
-            {/* BAR CARD 1: LENT OUT TOTAL */}
             <div className="flex flex-col items-center gap-3 flex-1 h-full justify-end relative z-10">
-              <span className="text-xs font-black text-slate-300 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800 shadow-xl select-none animate-scaleIn">
+              <span className="text-xs font-black text-slate-300 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800 shadow-xl select-none">
                 ₹{data.lent.toLocaleString()}
               </span>
               <div 
@@ -111,9 +113,8 @@ export default function AnalyticsTab() {
               </span>
             </div>
 
-            {/* BAR CARD 2: COLLECTED CASH RETURNS */}
             <div className="flex flex-col items-center gap-3 flex-1 h-full justify-end relative z-10">
-              <span className="text-xs font-black text-emerald-400 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800 shadow-xl select-none animate-scaleIn">
+              <span className="text-xs font-black text-emerald-400 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800 shadow-xl select-none">
                 ₹{data.collected.toLocaleString()}
               </span>
               <div 
@@ -127,7 +128,6 @@ export default function AnalyticsTab() {
           </div>
         </div>
 
-        {/* CHART BLOCK 2: ISOLATED REVENUE RECOVERY CHART */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col justify-between h-[420px]">
           <div>
             <h3 className="text-md font-black text-emerald-400">Earned Revenue Yield</h3>
@@ -143,9 +143,8 @@ export default function AnalyticsTab() {
               <div></div>
             </div>
 
-            {/* BAR CARD 3: NET PROFIT GENERATED REVENUE */}
-            <div className="flex flex-col items-center gap-3 w-full px-8 h-full justify-end relative z-10">
-              <span className="text-sm font-black text-emerald-400 bg-slate-950 border border-emerald-500/20 px-3 py-1 rounded-xl shadow-inner animate-scaleIn">
+            <div className="flex flex-col items-center gap-2 w-full px-8 h-full justify-end relative z-10">
+              <span className="text-sm font-black text-emerald-400 bg-slate-950 border border-emerald-500/20 px-3 py-1 rounded-xl shadow-inner">
                 ₹{data.profit.toLocaleString()}
               </span>
               <div 
@@ -158,7 +157,6 @@ export default function AnalyticsTab() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
