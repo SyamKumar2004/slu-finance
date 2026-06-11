@@ -1,18 +1,29 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Settings, User, ShieldCheck, Landmark } from 'lucide-react';
+import { Settings, User, Landmark } from 'lucide-react';
 
 export default function ProfileSettingsTab() {
   const supabase = createClient();
   const [sysRowId, setSysRowId] = useState<number | null>(null);
   const [sys, setSys] = useState({ companyName: 'SLU Finance', interestBuffer: '0' });
-  const [admin, setAdmin] = useState({ name: 'Potnuru Syamkumar', email: 'syamkumarpotnuru7@gmail.com', phone: '+917075516605' });
+  
+  // REMOVED HARDCODED PERSONAL STRINGS TO ALLOW DYNAMIC MULTI-TENANT RESOLUTION
+  const [admin, setAdmin] = useState({ name: '', email: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const [sysLoading, setSysLoading] = useState(false);
 
   const fetchProfileAndSettings = useCallback(async () => {
-    const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
+    const activeLenderUuid = localStorage.getItem('slu_user_id');
+    
+    // Quick Fallback: Populate details from local storage immediately while database scans run
+    const backupName = localStorage.getItem('slu_user_name') || 'Lender Administrator';
+    const backupEmail = localStorage.getItem('slu_user_email') || '';
+    setAdmin(prev => ({
+      ...prev,
+      name: prev.name || backupName,
+      email: prev.email || backupEmail
+    }));
 
     // 1. Fetch System Settings safely
     const { data: sysData } = await supabase
@@ -29,7 +40,11 @@ export default function ProfileSettingsTab() {
       });
     }
 
-    // 2. Fetch specific Admin data row using their strict private User UUID
+    if (!activeLenderUuid || activeLenderUuid === '00000000-0000-0000-0000-000000000000') {
+      return;
+    }
+
+    // 2. Fetch specific Admin data row dynamically using their active UUID session token
     const { data: adminData } = await supabase
       .from('user_profiles')
       .select('*')
@@ -38,7 +53,7 @@ export default function ProfileSettingsTab() {
 
     if (adminData) {
       setAdmin({ 
-        name: adminData.full_name, 
+        name: adminData.full_name || '', 
         email: adminData.email || '', 
         phone: adminData.phone_number || '' 
       });
@@ -52,9 +67,14 @@ export default function ProfileSettingsTab() {
   const handleUpdateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const activeLenderUuid = localStorage.getItem('slu_user_id') || '00000000-0000-0000-0000-000000000000';
+    const activeLenderUuid = localStorage.getItem('slu_user_id');
 
-    // BULLETPROOF: Updates ONLY your explicit account row using your unique ID
+    if (!activeLenderUuid || activeLenderUuid === '00000000-0000-0000-0000-000000000000') {
+      alert("Session Error: Outdated authentication token detected. Please log out and back in to sync variables.");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase
       .from('user_profiles')
       .update({ 
@@ -67,7 +87,7 @@ export default function ProfileSettingsTab() {
     if (!error) {
       localStorage.setItem('slu_user_name', admin.name.trim());
       localStorage.setItem('slu_user_email', admin.email.trim().toLowerCase());
-      alert("Success: Admin profile records updated live!");
+      alert("Success: Profile settings updated successfully!");
       fetchProfileAndSettings();
     } else {
       alert(`Profile Update Fault: ${error.message}`);
@@ -137,7 +157,7 @@ export default function ProfileSettingsTab() {
               <label className="text-xs text-slate-400 uppercase font-black tracking-wider">System Interest Buffer Rate (%)</label>
               <input required type="number" step="0.01" value={sys.interestBuffer} onChange={e => setSys({ ...sys, interestBuffer: e.target.value })} className="w-full mt-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold text-sm focus:outline-none focus:border-slate-500 shadow-inner" />
             </div>
-            <button type="submit" disabled={sysLoading} className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 text-white text-xs font-black p-4 rounded-xl uppercase tracking-wider transition-all shadow-md mt-2">
+            <button type="submit" disabled={sysLoading} className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 text-white text-sm font-black p-4 rounded-xl uppercase tracking-wider transition-all shadow-md mt-2">
               {sysLoading ? 'Synchronizing Systems...' : 'Sync System Settings'}
             </button>
           </form>
@@ -164,7 +184,7 @@ export default function ProfileSettingsTab() {
               <label className="text-xs text-slate-400 uppercase font-black tracking-wider">Mobile Contact Number</label>
               <input required type="text" value={admin.phone} onChange={e => setAdmin({ ...admin, phone: e.target.value })} className="w-full mt-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold text-sm focus:outline-none focus:border-slate-500 shadow-inner" />
             </div>
-            <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black p-4 rounded-xl uppercase tracking-wider transition-all shadow-lg mt-2">
+            <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black p-4 rounded-xl uppercase tracking-wider transition-all shadow-lg mt-2">
               {loading ? 'Saving Profile Changes...' : 'Update Admin Credentials'}
             </button>
           </form>
