@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, LogOut, AlertCircle, CheckCircle2, Lock, FileText, User, Mail, MapPin, Landmark, Smartphone } from 'lucide-react';
+import { ShieldCheck, LogOut, AlertCircle, CheckCircle2, Lock, FileText, User, Mail, MapPin, Landmark, Smartphone, Calendar } from 'lucide-react';
 
 export default function ClientDashboardPortal() {
   const supabase = createClient();
@@ -21,7 +21,6 @@ export default function ClientDashboardPortal() {
     const locallySavedName = localStorage.getItem('slu_user_name');
     const locallySavedEmail = localStorage.getItem('slu_user_email');
 
-    // Fetch the primary client profile record details
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
@@ -29,11 +28,12 @@ export default function ClientDashboardPortal() {
       .maybeSingle();
 
     if (profile) {
-      // Pull loan ledger details associated with this account
       const { data: dynamicLoans } = await supabase
         .from('live_loans')
         .select('*')
         .eq('client_phone', profile.phone_number);
+
+      const now = new Date();
 
       const mappedLoans = await Promise.all((dynamicLoans || []).map(async (l: any) => {
         const p = Number(l.principal_amount || 0);
@@ -41,7 +41,6 @@ export default function ClientDashboardPortal() {
         const collected = Number(l.total_collected || 0);
         const totalDebt = p + (p * (r / 100));
 
-        // Dynamic Lookup: Fetch the specific full name of the lender who issued this loan row
         let issuingLenderName = 'SLU Credit Executive';
         if (l.lender_id) {
           const { data: lenderProfile } = await supabase
@@ -54,11 +53,15 @@ export default function ClientDashboardPortal() {
           }
         }
 
+        const nextPayDate = l.next_installment_date ? new Date(l.next_installment_date) : null;
+        const isOverdue = l.status === 'Active' && nextPayDate && now > nextPayDate;
+
         return {
           ...l,
           originLenderName: issuingLenderName,
           totalPayableDebt: totalDebt,
-          remainingBalance: Math.max(0, totalDebt - collected)
+          remainingBalance: Math.max(0, totalDebt - collected),
+          isOverdue
         };
       }));
 
@@ -82,6 +85,11 @@ export default function ClientDashboardPortal() {
   useEffect(() => { 
     verifyClientSession(); 
   }, [verifyClientSession]);
+
+  const formatLocalDate = (isoString: string) => {
+    if (!isoString) return 'N/A';
+    return new Date(isoString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   const handleModifyPasswordLive = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +150,18 @@ export default function ClientDashboardPortal() {
               ) : (
                 loans.map(loan => (
                   <div key={loan.id} className="bg-[#0b132b] border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-6">
+                    
+                    {/* TIMELINE NOTIFICATION BAR UPGRADE */}
+                    {loan.isOverdue && (
+                      <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl flex items-center gap-3 text-sm font-bold text-rose-400 animate-pulse">
+                        <AlertCircle className="h-5 w-5 shrink-0" />
+                        <div>
+                          <span className="block font-black uppercase text-xs tracking-wider">Repayment Deadline Breach Warning</span>
+                          Your scheduled installment due date of {formatLocalDate(loan.next_installment_date)} has exceeded. Please clear arrears to prevent record delinquency status.
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800/60 pb-4 gap-4">
                       <div>
                         <span className="text-xs font-black text-slate-400 uppercase tracking-widest block">Account Remaining Balance</span>
@@ -153,11 +173,12 @@ export default function ClientDashboardPortal() {
                       </div>
                     </div>
 
+                    {/* DYNAMIC METRIC LABELS FOR TIMELINE INTEGRATIONS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-black text-slate-400">
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Principal Financed</span><span className="text-slate-100 text-base sm:text-lg block mt-1">₹{Number(loan.principal_amount).toLocaleString()}</span></div>
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Interest Rate</span><span className="text-slate-100 text-base block mt-1">{loan.interest_rate}%</span></div>
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Gross Contract Debt</span><span className="text-white text-base sm:text-lg block mt-1">₹{loan.totalPayableDebt.toLocaleString()}</span></div>
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-emerald-500 block uppercase tracking-wide">Repayment Installment</span><span className="text-emerald-400 text-base sm:text-lg block mt-1">₹{loan.installment_amount} / {loan.tenure_type}</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Next Installment Due</span><span className={`text-base sm:text-lg block mt-1 font-mono ${loan.isOverdue ? 'text-rose-400' : 'text-slate-100'}`}>{loan.status === 'Closed' ? '-' : formatLocalDate(loan.next_installment_date)}</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Final Maturity Settlement</span><span className="text-slate-100 text-base sm:text-lg block mt-1 font-mono">{formatLocalDate(loan.final_settlement_date)}</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block uppercase tracking-wide">Principal Financed</span><span className="text-slate-100 text-base block mt-1">₹{Number(loan.principal_amount).toLocaleString()}</span></div>
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800"><span className="text-xs text-emerald-500 block uppercase tracking-wide">Repayment Installment</span><span className="text-emerald-400 text-base block mt-1">₹{loan.installment_amount} / {loan.tenure_type}</span></div>
                     </div>
 
                     <div className="flex justify-between items-center bg-slate-950/30 p-4 rounded-xl border border-slate-800 text-sm font-bold text-slate-400">
